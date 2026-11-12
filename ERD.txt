@@ -1,0 +1,338 @@
+
+Table users {
+  id uuid [pk]
+  email varchar [unique, null]
+  mobile varchar [unique, null]
+  password_hash varchar
+  is_active boolean [default: true]
+  created_by_user_id uuid [null]
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+}
+
+Table roles {
+  id uuid [pk]
+  name varchar [unique]
+  description text
+  is_system_role boolean [default: false]
+}
+
+Table permissions {
+  id uuid [pk]
+  name varchar [unique]
+  description text
+}
+
+Table user_roles {
+  user_id uuid
+  role_id uuid
+
+  indexes {
+    (user_id, role_id) [pk]
+  }
+}
+
+Table role_permissions {
+  role_id uuid
+  permission_id uuid
+
+  indexes {
+    (role_id, permission_id) [pk]
+  }
+}
+
+Table parents {
+  id uuid [pk]
+  user_id uuid [unique]
+  full_name varchar [null]
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+}
+
+Table specialists {
+  id uuid [pk]
+  user_id uuid [unique]
+  full_name varchar
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+}
+
+Table branches {
+  id uuid [pk]
+  name varchar [unique]
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+}
+
+Table knowledge_sources {
+  id uuid [pk]
+  name varchar [unique]
+  is_active boolean [default: true]
+  created_at timestamp
+}
+
+Table children {
+  id uuid [pk]
+  parent_id uuid
+  child_code varchar [unique]
+  sequence_number bigint [unique]
+  age integer
+  nationality varchar
+  neighborhood varchar
+  knowledge_source_id uuid [null]
+  identity_verified boolean [default: false]
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+}
+
+Table cases {
+  id uuid [pk]
+  child_id uuid
+  branch_id uuid
+  specialist_id uuid
+  initial_problem text
+  status varchar [null]
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+}
+
+Table initial_assessments {
+  id uuid [pk]
+  child_id uuid [unique]
+  assessment_date date
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+}
+
+Table assessment_questions {
+  id uuid [pk]
+  section_name varchar
+  question_text text
+  question_type varchar
+  display_order integer
+  is_active boolean [default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table assessment_answers {
+  id uuid [pk]
+  assessment_id uuid
+  question_id uuid
+  answer_value text
+  created_at timestamp
+
+  indexes {
+    (assessment_id, question_id) [unique]
+  }
+}
+
+Table functional_scales {
+  id uuid [pk]
+  name varchar [unique]
+  description text
+  display_order integer
+  is_active boolean [default: true]
+}
+
+Table functional_scale_scores {
+  id uuid [pk]
+  assessment_id uuid
+  scale_id uuid
+  score integer
+
+  indexes {
+    (assessment_id, scale_id) [unique]
+  }
+}
+
+Table consent_types {
+  id uuid [pk]
+  name varchar [unique]
+  description text
+  is_active boolean [default: true]
+}
+
+Table child_consents {
+  id uuid [pk]
+  child_id uuid
+  consent_type_id uuid
+  accepted_at timestamp
+  accepted_by_user_id uuid
+
+  indexes {
+    (child_id, consent_type_id) [unique]
+  }
+}
+
+Table treatment_plans {
+  id uuid [pk]
+  case_id uuid
+  title varchar
+  plan_type varchar
+  start_date date
+  end_date date [null]
+  status varchar
+  created_by_user_id uuid
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+}
+
+Table plan_specialists {
+  plan_id uuid
+  specialist_id uuid
+
+  indexes {
+    (plan_id, specialist_id) [pk]
+  }
+}
+
+Table goals {
+  id uuid [pk]
+  plan_id uuid
+  specialist_id uuid
+  title varchar
+  description text
+  display_order integer
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+}
+
+Table goal_progress_history {
+  id uuid [pk]
+  goal_id uuid
+  progress_percentage decimal
+  notes text [null]
+  recorded_by_user_id uuid
+  recorded_at timestamp
+}
+
+Table reports {
+  id uuid [pk]
+  case_id uuid
+  specialist_id uuid
+  session_date date
+  session_notes text [null]
+  visible_to_parent boolean [default: true]
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+}
+
+Table homework {
+  id uuid [pk]
+  case_id uuid
+  title varchar
+  description text
+  due_date date [null]
+  status varchar
+  parent_comment text [null]
+  completed_at timestamp [null]
+  created_by_user_id uuid
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+}
+
+Table appointments {
+  id uuid [pk]
+  child_id uuid
+  branch_id uuid
+  scheduled_by_user_id uuid
+  appointment_date timestamp
+  status varchar
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+}
+
+Table notifications {
+  id uuid [pk]
+  recipient_user_id uuid
+  title varchar
+  message text
+  notification_type varchar
+  related_entity varchar [null]
+  related_record_id uuid [null]
+  is_read boolean [default: false]
+  sent_at timestamp [null]
+  created_at timestamp
+}
+
+Table audit_logs {
+  id uuid [pk]
+  user_id uuid
+  action varchar
+  entity_name varchar
+  record_id uuid
+  old_values json
+  new_values json
+  created_at timestamp
+}
+
+// Relationships
+
+Ref: users.created_by_user_id > users.id
+
+Ref: user_roles.user_id > users.id
+Ref: user_roles.role_id > roles.id
+
+Ref: role_permissions.role_id > roles.id
+Ref: role_permissions.permission_id > permissions.id
+
+Ref: parents.user_id - users.id
+Ref: specialists.user_id - users.id
+
+Ref: children.parent_id > parents.id
+Ref: children.knowledge_source_id > knowledge_sources.id
+
+Ref: cases.child_id > children.id
+Ref: cases.branch_id > branches.id
+Ref: cases.specialist_id > specialists.id
+
+Ref: initial_assessments.child_id - children.id
+
+Ref: assessment_answers.assessment_id > initial_assessments.id
+Ref: assessment_answers.question_id > assessment_questions.id
+
+Ref: functional_scale_scores.assessment_id > initial_assessments.id
+Ref: functional_scale_scores.scale_id > functional_scales.id
+
+Ref: child_consents.child_id > children.id
+Ref: child_consents.consent_type_id > consent_types.id
+Ref: child_consents.accepted_by_user_id > users.id
+
+Ref: treatment_plans.case_id > cases.id
+Ref: treatment_plans.created_by_user_id > users.id
+
+Ref: plan_specialists.plan_id > treatment_plans.id
+Ref: plan_specialists.specialist_id > specialists.id
+
+Ref: goals.plan_id > treatment_plans.id
+Ref: goals.specialist_id > specialists.id
+
+Ref: goal_progress_history.goal_id > goals.id
+Ref: goal_progress_history.recorded_by_user_id > users.id
+
+Ref: reports.case_id > cases.id
+Ref: reports.specialist_id > specialists.id
+
+Ref: homework.case_id > cases.id
+Ref: homework.created_by_user_id > users.id
+
+Ref: appointments.child_id > children.id
+Ref: appointments.branch_id > branches.id
+Ref: appointments.scheduled_by_user_id > users.id
+
+Ref: notifications.recipient_user_id > users.id
+
+Ref: audit_logs.user_id > users.id
