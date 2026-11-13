@@ -10,6 +10,7 @@
 !/.env.example
 /.phpunit.result.cache
 /.phpunit.cache
+/database/*.sqlite
 /.idea
 /.vscode
 /.fleet

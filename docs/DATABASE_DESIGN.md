@@ -1,8 +1,12 @@
-# بصمة نور — تصميم قاعدة البيانات v3
+# بصمة نور — تصميم قاعدة البيانات v4
 
 > **الحالة:** ⏳ بانتظار اعتماد العميل. **لا migrations ولا كود قبل الاعتماد.**
-> **الإصدار:** v3 · **التاريخ:** 2026-11-12
-> **الأساس:** `ERD.txt` + متطلبات §4 + قرارات العميل + مراجعة العميل على v2.
+> **الإصدار:** v4 · **التاريخ:** 2026-11-13 (توضيحات Gate B؛ لا تغيير في الـ Schema)
+> **الأساس:** `ERD.txt` + متطلبات §4 + قرارات العميل + مراجعة العميل على v2/v3.
+
+> **قاعدة الاعتماد:** لا يُنشأ مشروع Laravel ولا migration ولا كود تطبيقي قبل اعتماد هذه الوثيقة.
+> ترتيب الاعتماد الملزم: **(A) اعتماد الوثائق → (B) تجهيز البيئة → (C) الـ migrations → (D) الـ Backend**.
+> أي بند `PENDING` لا يُنفَّذ ولا يُفترض له سلوك افتراضي.
 
 ---
 
@@ -12,7 +16,23 @@
 |---|---|
 | v1 | مراجعة الـ ERD الأصلي. |
 | v2 | تصحيحات C-01…C-07 + إضافات أمنية. |
-| **v3** | **دور أساسي واحد عبر `users.role_id`** · **`cases.specialist_id` nullable مع بوابة إسناد** · **Reports = ملف PDF مرفوع + ربط الأهداف** · **تاريخ تقدم بـ previous/new + `report_id`** · **آلية صلاحيات صريحة ومقاومة للتصعيد** · **فرض الإقرارات الثلاثة عند التسجيل** · **توثيق حالات تحويل الأسماء الخاصة**. |
+| v3 | دور أساسي واحد عبر `users.role_id` · `cases.specialist_id` nullable مع بوابة إسناد · Reports = ملف PDF مرفوع + ربط الأهداف · تاريخ تقدم بـ previous/new + `report_id` · آلية صلاحيات صريحة ومقاومة للتصعيد · فرض الإقرارات الثلاثة عند التسجيل · توثيق حالات تحويل الأسماء الخاصة. |
+| **v4** | **تثبيت المصادقة كقرار معلّق (P-01/P-32)** · **قاعدة عدم تكرار حساب ولي الأمر** · **تأكيد `plan_specialists` كجدول مشاركي الخطة (D-040)** · **فصل `accepted_by` عن `recorded_by` في الإقرارات (P-12)** · **تصحيح تعارض `SET NULL` مع قيود/Triggers الحماية** · **Trigger لثبات تاريخ التقدم** · **توحيد مصفوفة الحذف** · **تعديل مثال كود الطفل الخاطئ** · **بوابات اعتماد صريحة**. |
+
+### ملخص التغييرات v3 → v4
+
+| # | v3 | v4 |
+|---|---|---|
+| 1 | D-18 يفرض email للـ Staff وmobile للـ Parent | **معلّق** — لا فرض قبل P-01/P-32؛ يلزم identifier واحد على الأقل تطبيقيًا. |
+| 2 | لا قاعدة صريحة لمنع تكرار ولي الأمر | **قاعدة Find-or-Create + منع التكرار** داخل transaction التسجيل (D-033). |
+| 3 | `plan_specialists` موجود بلا تبرير كافٍ | **مؤكد** كجدول مشاركي الخطة، ويسمح بأكثر من أخصائي مسؤول (D-040). |
+| 4 | `child_consents.accepted_by_user_id` = actor | **فصل** `accepted_by_user_id` (nullable) عن `recorded_by_user_id` (NOT NULL) + حقول نسخة/نص اختيارية (D-035). |
+| 5 | `audit_logs.user_id` SET NULL مع Trigger يمنع UPDATE | **RESTRICT** + توثيق أن الحذف النهائي للمستخدم غير مدعوم (D-036). |
+| 6 | `goal_progress_history.report_id` SET NULL | **RESTRICT** + Trigger يمنع UPDATE/DELETE على تاريخ التقدم (D-036/D-037). |
+| 7 | `cases.assigned_by_user_id` SET NULL مع CHECK | **RESTRICT** لحفظ اتساق CHECK. |
+| 8 | مصفوفة حذف غير متسقة (`parents`/`specialists`/`knowledge_sources`) | **مصفوفة حذف موحّدة** لكل الجداول (D-038). |
+| 9 | عدد أهداف التقرير ≥ 1 كقاعدة مؤكدة | **مؤقت — P-31**؛ لا تُثبّت قبل القرار. |
+| 10 | مثال `"محمد   علي" → MO` | **خطأ**؛ الناتج الصحيح `MU` (Muhammad → MU). |
 
 ### ملخص التغييرات v2 → v3
 
@@ -36,8 +56,12 @@
 3. **التاريخ لا يُعاد كتابته.** الإجابات، الدرجات، التقدم، الإقرارات، والـ audit سجلات append-only.
 4. **القيم غير النهائية تبقى `varchar null`.** لا enums ولا CHECK على حالات لم يعتمدها العميل.
 5. **الأمان في الاستعلام، لا بعده.** كل وصول لبيانات طفل يبدأ من Scope يفرض الملكية/الإسناد.
-6. **Single source of truth.** الاسم في `users.name`، التقدم الحالي في `goals.progress_percentage`،
-   والتاريخ الكامل في `goal_progress_history`.
+6. **Single source of truth.** اسم المستخدم/الموظف في `users.name` (واسم ولي الأمر إن اعتُمد — P-04)،
+   التقدم الحالي في `goals.progress_percentage`، والتاريخ الكامل في `goal_progress_history`.
+7. **لا قرار ضمني.** أي سؤال مصادقة/صلاحية/نص قانوني/حالة غير معتمدة يبقى `PENDING`؛
+   لا يُختار له سلوك افتراضي في الـ Schema أو الـ Seeder أو الـ Validation.
+8. **لا حذف نهائي لبيانات سريرية.** كل FK على بيانات تاريخية/سريرية يستخدم `RESTRICT`،
+   و`CASCADE` محصور في الجداول اليتيمة (pivots/answers التابعة لتقييم) أو بيانات غير سريرية.
 
 ---
 
@@ -57,9 +81,9 @@
 
 ### 2.2 التصحيحات التصميمية (معتمدة)
 
-| # | الحل في v3 |
+| # | الحل المعتمد (v3/v4) |
 |---|---|
-| D-01 | `users.name` مصدرًا واحدًا للاسم؛ حُذف `parents.full_name` و`specialists.full_name`. |
+| D-01 | `users.name` مصدرًا واحدًا لاسم المستخدم/الموظف؛ حُذف `parents.full_name` و`specialists.full_name`. اسم ولي الأمر في `users.name` **معلّق P-04**. |
 | D-02 | العمود `password` بدل `password_hash`. |
 | D-03 | `audit_logs`: `user_id` nullable + `actor_role` + `ip_address` + `user_agent`. |
 | D-04 | Trigger يمنع `UPDATE`/`DELETE` على `audit_logs`. |
@@ -76,9 +100,15 @@
 | D-15 | `users.is_active` مصدر وحيد للتعطيل. |
 | D-16 | لا `specialty` للأخصائي (غير مطلوب). |
 | D-17 | timestamps على `knowledge_sources`. |
-| D-18 | تحقق تطبيقي: Staff يلزمه email، وParent يلزمه mobile (رهن P-01). |
+| D-18 | **لا فرض مسبق** لـ email على Staff ولا لـ mobile على Parent. يلزم identifier واحد على الأقل تطبيقيًا، ونوعه لكل دور **معلّق** (P-01/P-32). |
 | D-19 | لا ربط بين `cases` و`initial_assessments` (التقييم على مستوى الطفل). |
 | D-20 | لا timestamps على pivots. |
+| D-21 | `child_consents`: فصل `accepted_by_user_id` (nullable) عن `recorded_by_user_id` (NOT NULL) + `consent_version`/`consent_text_snapshot` nullable (P-12). |
+| D-22 | `goal_progress_history`: Trigger يمنع `UPDATE`/`DELETE`، و`report_id` → `RESTRICT` بدل `SET NULL`. |
+| D-23 | `audit_logs.user_id` → `RESTRICT`؛ الحذف النهائي للمستخدم غير مدعوم. |
+| D-24 | `parents`/`specialists` لهما `deleted_at` صراحة؛ `knowledge_sources` يعتمد `is_active` فقط بلا soft delete. |
+| D-25 | `plan_specialists` **مؤكد** كجدول مشاركي الخطة؛ لا يمنح وصولًا للـ Case ولا يُفرض على `goals.specialist_id` في v1 (D-040). |
+| D-26 | `cases.assigned_by_user_id` → `RESTRICT` لحفظ اتساق CHECK الخاص بالإسناد. |
 
 ---
 
@@ -92,8 +122,8 @@
 | users → users (creator) | N:1 | `users.created_by_user_id` | SET NULL | تتبع مَن أنشأ الحساب. |
 | users → permissions | N:M | `user_permissions` | CASCADE | Override فردي. |
 | roles → permissions | N:M | `role_permissions` | CASCADE | الصلاحيات الافتراضية. |
-| users → parents | 1:1 | `parents.user_id` | CASCADE | بروفايل ولي الأمر. |
-| users → specialists | 1:1 | `specialists.user_id` | CASCADE | بروفايل الأخصائي. |
+| users → parents | 1:1 | `parents.user_id` | CASCADE | بروفايل ولي الأمر؛ soft delete على `users`/`parents`. |
+| users → specialists | 1:1 | `specialists.user_id` | CASCADE | بروفايل الأخصائي؛ soft delete على `users`/`specialists`. |
 | parents → children | 1:N | `children.parent_id` | RESTRICT | ولي أمر بعدة أطفال. |
 | knowledge_sources → children | 1:N | `children.knowledge_source_id` | RESTRICT | nullable. |
 | children → cases | 1:N | `cases.child_id` | RESTRICT | حالات متعددة. |
@@ -108,12 +138,14 @@
 | reinforcer_catalog → assessment_reinforcers | 1:N | `reinforcer_id` | RESTRICT | snapshot للاسم/الفئة. |
 | children → child_consents | 1:N | `child_consents.child_id` | RESTRICT | سجل قانوني. |
 | consent_types → child_consents | 1:N | `consent_type_id` | RESTRICT | 3 أنواع مطلوبة. |
+| users → child_consents (accepted) | 1:N | `accepted_by_user_id` | RESTRICT | **nullable**؛ حساب ولي الأمر عند القبول الرقمي. |
+| users → child_consents (recorded) | 1:N | `recorded_by_user_id` | RESTRICT | **NOT NULL**؛ الموظف/المستخدم الذي سجّل الإقرار. |
 | cases → treatment_plans | 1:N | `treatment_plans.case_id` | RESTRICT | |
-| treatment_plans → specialists | N:M | `plan_specialists` | CASCADE (pivot) | أخصائيون متعددون. |
+| treatment_plans → specialists | N:M | `plan_specialists` | CASCADE (pivot) | **مؤكد (D-040)**؛ الخطة قد يكون لها أكثر من أخصائي مسؤول؛ لا يمنح وصولًا للـ Case. |
 | treatment_plans → goals | 1:N | `goals.plan_id` | RESTRICT | |
 | specialists → goals | 1:N | `goals.specialist_id` | RESTRICT | أخصائي واحد لكل هدف. |
-| goals → progress_history | 1:N | `goal_progress_history.goal_id` | RESTRICT | append-only. |
-| reports → progress_history | 1:N | `goal_progress_history.report_id` | **SET NULL** | اختياري؛ التقدم لا يُفقد بحذف تقرير. |
+| goals → progress_history | 1:N | `goal_progress_history.goal_id` | RESTRICT | append-only + Trigger. |
+| reports → progress_history | 1:N | `goal_progress_history.report_id` | **RESTRICT** | اختياري (nullable)؛ لا حذف نهائي لتقرير له تاريخ. |
 | cases → reports | 1:N | `reports.case_id` | RESTRICT | |
 | specialists → reports | 1:N | `reports.specialist_id` | RESTRICT | مُنشئ التقرير. |
 | cases → homework | 1:N | `homework.case_id` | RESTRICT | |
@@ -121,21 +153,29 @@
 | children → appointments | 1:N | `appointments.child_id` | RESTRICT | |
 | branches → appointments | 1:N | `appointments.branch_id` | RESTRICT | |
 | specialists → appointments | 1:N | `appointments.specialist_id` | RESTRICT | **مؤقت — P-15**. |
-| users → notifications | 1:N | `notifications.recipient_user_id` | CASCADE | in-app. |
-| users → audit_logs | 1:N | `audit_logs.user_id` | SET NULL | السجل يبقى بعد حذف المستخدم. |
+| users → cases (assigner) | 1:N | `cases.assigned_by_user_id` | RESTRICT | nullable فقط قبل الإسناد؛ CHECK يمنع null بعد الإسناد. |
+| users → notifications | 1:N | `notifications.recipient_user_id` | CASCADE | in-app؛ بيانات غير سريرية. |
+| users → audit_logs | 1:N | `audit_logs.user_id` | RESTRICT | الحذف النهائي للمستخدم غير مدعوم؛ `user_id` nullable لعمليات النظام. |
 
 ### 3.2 فحص العلاقات (Sanity Check)
 
-- لا توجد علاقة N:M إلا `plan_specialists` و`role/user_permissions` → لا تكرار بيانات.
+- العلاقات N:M محصورة في pivots صريحة: `role_permissions`، `user_permissions`، `plan_specialists` → لا تكرار بيانات.
 - كل علاقة "سجل تاريخي" تستخدم `RESTRICT`، ولا يوجد Cascade على بيانات طبية.
 - `goal_progress_history.report_id` هو **الرابط الوحيد** بين التقرير والأهداف — لا جدول pivot مكرر.
 - `reports` لا ترتبط بـ `plan_id`؛ الربط يمر عبر `case_id` ثم `plans.case_id`
   (يُتحقق منه تطبيقيًا داخل transaction).
 - التقييم مرتبط بالطفل لا بالـ Case → يطابق §4-E حرفيًا.
+- **`plan_specialists` مؤكد:** يمثّل الأخصائيين المشاركين/المسؤولين عن الخطة، ويسمح بتعددهم
+  (D-040). لا يمنح وصولًا للـ Case؛ الوصول يبقى بـ `cases.specialist_id`. لا يُفرض في v1
+  أن `goals.specialist_id` عضو فيه.
+- **المصادقة غير محسومة:** وجود `email` و`mobile` معًا في `users` لا يعني اعتماد أيهما للدخول.
+  كل دور له identifier واحد على الأقل تطبيقيًا، لكن تحديده معلّق (P-01/P-32).
+- **ولي الأمر:** `parents.user_id` unique + `children.parent_id` NOT NULL يضمنان أن
+  الحساب الواحد يملك عدة أطفال، ولا يُنشأ بروفايل ولي أمر مكرر لنفس المستخدم (D-033).
 
 ---
 
-## 4. Schema v3
+## 4. Schema v4
 
 > كل الجداول: `id uuid PK` + `created_at`/`updated_at` إلا ما ذُكر.
 > الـ FKs صريحة، و`RESTRICT` هو الافتراضي.
@@ -166,10 +206,10 @@ PK (`role_id`, `permission_id`) · FK cascade · index على `permission_id`.
 |---|---|---|
 | id | uuid | PK |
 | role_id | uuid | **NOT NULL** → roles.id RESTRICT |
-| name | varchar(150) | null (إلزامي للـ Staff تطبيقيًا) |
+| name | varchar(150) | null (إلزامي للـ Staff تطبيقيًا؛ تخزين اسم ولي الأمر معلّق P-04) |
 | email | varchar(190) | unique · null (lowercase) |
 | mobile | varchar(20) | unique · null |
-| password | varchar(255) | NOT NULL |
+| password | varchar(255) | NOT NULL (طريقة الدخول ووجود كلمة المرور معلّقان P-01/P-32) |
 | is_active | bool | default true |
 | created_by_user_id | uuid | null → users.id SET NULL |
 | last_login_at | timestamptz | null |
@@ -180,7 +220,10 @@ Indexes: `unique(email)`, `unique(mobile)`, `(role_id, is_active)`, `(created_by
 
 **Invariants تطبيقية:**
 - `role_id` لا يُقبل من أي Request عام؛ يُحدَّد بواسطة Service بعد فحص الصلاحية.
-- Staff (SUPER_ADMIN/CO_ADMIN/RECEPTION/SPECIALIST) يلزمه `email`.
+- **لا يُفرض `email` على Staff ولا `mobile` على Parent قبل P-01/P-32.** يلزم identifier واحد
+  على الأقل (`email` أو `mobile`) تطبيقيًا، ونوعه لكل دور يُحسم بقرار العميل.
+- كلمة المرور مطلوبة حاليًا في الـ Schema، لكن **آلية الدخول نفسها معلّقة**؛
+  لا يُبنى Auth endpoint قبل P-01/P-32.
 - تغيير الدور أو الحالة يُسجَّل في `audit_logs` بقيم قديمة/جديدة.
 
 #### `user_permissions`
@@ -198,10 +241,14 @@ PK (`user_id`, `permission_id`) · index على `permission_id`.
 - `is_granted = false` = سحب صريح يتجاوز صلاحية الدور.
 
 #### `parents`
-`user_id` uuid unique → users.id CASCADE.
+`user_id` uuid unique → users.id CASCADE · `created_at`/`updated_at`/`deleted_at` timestamptz.
+**لا `full_name`** — الاسم (إن اعتُمد تخزينه) في `users.name` (P-04).
+- الحساب الواحد يدير عدة أطفال؛ `children.parent_id` هو الرابط.
+- ممنوع إنشاء أكثر من بروفايل ولي أمر لنفس `user_id` (unique).
 
 #### `specialists`
-`user_id` uuid unique → users.id CASCADE.
+`user_id` uuid unique → users.id CASCADE · `created_at`/`updated_at`/`deleted_at` timestamptz.
+- حساب واحد لكل أخصائي؛ التعطيل عبر `users.is_active` أو soft delete.
 
 ### 4.2 Organization
 
@@ -211,6 +258,7 @@ Partial unique: `(name) WHERE deleted_at IS NULL`.
 
 #### `knowledge_sources`
 `name` varchar(120) unique · `is_active` bool default true · timestamps.
+**لا soft delete** — التعطيل عبر `is_active` فقط (D-24)؛ لا يُحذف مصدر مستخدم في طفل.
 
 ### 4.3 Children & Cases
 
@@ -219,7 +267,7 @@ Partial unique: `(name) WHERE deleted_at IS NULL`.
 |---|---|---|
 | id | uuid | PK |
 | parent_id | uuid | NOT NULL → parents.id RESTRICT |
-| child_code | varchar(20) | NOT NULL unique |
+| child_code | varchar(20) | NOT NULL unique · CHECK `^[A-Z]{4}[0-9]+$` |
 | sequence_number | bigint | NOT NULL unique (global) |
 | age | smallint | NOT NULL · CHECK 0..120 |
 | age_recorded_at | date | NOT NULL default CURRENT_DATE |
@@ -233,6 +281,11 @@ Partial unique: `(name) WHERE deleted_at IS NULL`.
 
 Indexes: `(parent_id)`, `(knowledge_source_id)`.
 
+> **قاعدة ولي الأمر:** التسجيل يقبل `parent_id` لحساب قائم أو ينشئ/يعيد استخدام حساب واحد
+> حسب identifier مؤكد. ممنوع إنشاء حساب ولي أمر مكرر لنفس الشخص. مفتاح المطابقة
+> (email/mobile/غير ذلك) معلّق P-01/P-32؛ **رقم الجوال وحده ليس المفتاح المعتمد** (D-044)،
+> وعند التعارض يُرجع 422 ولا يُنشأ تكرار (D-033).
+
 #### `cases`
 | Column | Type | Constraints |
 |---|---|---|
@@ -241,7 +294,7 @@ Indexes: `(parent_id)`, `(knowledge_source_id)`.
 | branch_id | uuid | NOT NULL → branches.id RESTRICT |
 | specialist_id | uuid | **NULL** → specialists.id RESTRICT |
 | assigned_at | timestamptz | NULL |
-| assigned_by_user_id | uuid | NULL → users.id SET NULL |
+| assigned_by_user_id | uuid | NULL → users.id **RESTRICT** |
 | status | varchar(30) | NULL (قيم غير نهائية) |
 | created_at / updated_at | timestamptz | |
 | deleted_at | timestamptz | null |
@@ -254,6 +307,9 @@ Indexes: `(child_id)`, `(branch_id)`, `(specialist_id)`, `(specialist_id, status
 OR
 (specialist_id IS NOT NULL AND assigned_at IS NOT NULL AND assigned_by_user_id IS NOT NULL)
 ```
+
+> `assigned_by_user_id` يستخدم `RESTRICT` وليس `SET NULL`: لو حُذف المستخدم نهائيًا
+> فإن `SET NULL` سينتج صفًا يخالف CHECK. الحذف النهائي للمستخدم غير مدعوم أصلًا (D-036).
 
 ### 4.4 Assessment
 
@@ -294,12 +350,27 @@ Unique (`assessment_id`, `reinforcer_id`).
 
 #### `consent_types`
 `name` varchar(120) unique · `description` text · `is_required` bool · `display_order` smallint · `is_active` bool · timestamps.
-Seed فقط (3 أنواع) — **لا CRUD إداري في v1**.
+Seed فقط (3 أنواع) — **لا CRUD إداري في v1**، ولا نص قانوني مُختلق داخل الكود/الـ Seeder.
+النص الفعلي والنسخة **معلّقان P-12**.
 
 #### `child_consents`
-`child_id` → RESTRICT · `consent_type_id` → RESTRICT · `accepted_at` timestamptz NOT NULL · `accepted_by_user_id` → users.id RESTRICT · `created_at`.
-Unique (`child_id`, `consent_type_id`) · Index `(consent_type_id)`.
-**لا UPDATE ولا DELETE.**
+| Column | Type | Constraints |
+|---|---|---|
+| child_id | uuid | NOT NULL → children.id RESTRICT |
+| consent_type_id | uuid | NOT NULL → consent_types.id RESTRICT |
+| accepted_at | timestamptz | NOT NULL |
+| accepted_by_user_id | uuid | **NULL** → users.id RESTRICT (حساب ولي الأمر عند القبول الرقمي) |
+| recorded_by_user_id | uuid | **NOT NULL** → users.id RESTRICT (مَن سجّل الإقرار فعليًا) |
+| consent_version | varchar(20) | NULL (P-12) |
+| consent_text_snapshot | text | NULL (P-12؛ لا نص مُختلق) |
+| created_at | timestamptz | |
+
+Unique (`child_id`, `consent_type_id`) · Indexes `(consent_type_id)`, `(accepted_by_user_id)`, `(recorded_by_user_id)`.
+**لا UPDATE ولا DELETE.** أي تصحيح/سحب/نسخة جديدة يحتاج قرار P-12 أولًا.
+
+> **الفصل مهم:** `accepted_by_user_id` يجيب "مَن قبِل؟" (قد يكون ولي الأمر أو NULL لقبول ورقي)،
+> و`recorded_by_user_id` يجيب "مَن أدخل السجل؟" (الموظف/المستخدم المنفّذ).
+> لا يُستخدم `accepted_by` كبديل عن المنفّذ، ولا العكس.
 
 ### 4.5 Treatment
 
@@ -308,18 +379,24 @@ Unique (`child_id`, `consent_type_id`) · Index `(consent_type_id)`.
 Index `(case_id)`. `CHECK (end_date IS NULL OR end_date >= start_date)`.
 
 #### `plan_specialists`
-PK (`plan_id`, `specialist_id`) · FKs cascade/pivot · index `(specialist_id)`.
+PK (`plan_id`, `specialist_id`) · `plan_id` → treatment_plans.id CASCADE · `specialist_id` → specialists.id CASCADE · index `(specialist_id)`.
+**مؤكد — D-040:** يمثّل الأخصائيين المشاركين/المسؤولين عن الخطة، ويسمح بأكثر من أخصائي.
+لا يمنح وصولًا للـ Case، ولا يُفرض في v1 أن `goals.specialist_id` ضمنه.
+إدارة المشاركين تخضع لصلاحيات الخطط، دون افتراض صلاحية جديدة.
 
 #### `goals`
 `plan_id` → RESTRICT · `specialist_id` → RESTRICT · `title` varchar(200) · `description` text null · `display_order` smallint · `progress_percentage` numeric(5,2) default 0 **CHECK 0..100** · timestamps · softDeletes.
 Indexes `(plan_id)`, `(specialist_id)`, `(plan_id, display_order)`.
+- `specialist_id` يجب أن يشير إلى مستخدم بدور SPECIALIST ونشط (تطبيقيًا).
+- **لا يُفرض** أن الأخصائي عضو في `plan_specialists` في v1 (D-040).
+- `progress_percentage` لا يُحدَّث إلا عبر `RecordGoalProgressAction` (D-027/D-037).
 
 #### `goal_progress_history`
 | Column | Type | Constraints |
 |---|---|---|
 | id | uuid | PK |
 | goal_id | uuid | NOT NULL → goals.id RESTRICT |
-| report_id | uuid | **NULL** → reports.id **SET NULL** |
+| report_id | uuid | **NULL** → reports.id **RESTRICT** |
 | previous_percentage | numeric(5,2) | NOT NULL · CHECK 0..100 |
 | new_percentage | numeric(5,2) | NOT NULL · CHECK 0..100 |
 | notes | text | null |
@@ -328,7 +405,10 @@ Indexes `(plan_id)`, `(specialist_id)`, `(plan_id, display_order)`.
 
 Indexes: `(goal_id, recorded_at DESC)`, `(report_id)`.
 Partial unique: `(report_id, goal_id) WHERE report_id IS NOT NULL` — هدف واحد مرة واحدة لكل تقرير.
-**Append-only** (لا update/delete).
+**Append-only:** Trigger `goal_progress_history_immutable` يمنع `UPDATE`/`DELETE`.
+- `report_id` nullable لأن P-31 قد يسمح بتحديث تقدم بلا تقرير؛ لكنه `RESTRICT` عند وجوده،
+  فلا يُحذف تقرير نهائيًا وله تاريخ تقدم. الحذف العادي للتقرير soft delete فقط.
+- أي تصحيح يتم بإدخال صف جديد، وليس بتعديل القديم.
 
 ### 4.6 Reports (PDF workflow)
 
@@ -353,8 +433,16 @@ Indexes: `(case_id, session_date DESC)`, `(specialist_id)`.
 **ملاحظات:**
 - لا `session_notes` ولا `details jsonb` — التقرير محتواه داخل الـ PDF.
 - التقرير **create-only**؛ الحقول القابلة للتعديل إداريًا: `visible_to_parent` فقط.
-- استبدال/تصحيح الملف غير محدد → P-07/P-28.
+- **التقرير المخفي يبقى متاحًا للإدارة** عبر `reports.view_all` (وSUPER_ADMIN تجاوزه كامل)؛
+  `visible_to_parent = false` يخص ولي الأمر فقط (D-043).
+- **الأخصائي لا يملك `reports.hide_from_parent` افتراضيًا**؛ الدور الدقيق الذي يملك التغيير
+  ما زال P-07 إن لم يُؤكد صراحة.
+- استبدال/تصحيح الملف غير محدد → P-07.
 - `file_path` لا يُعاد في أي API Response؛ الـ Resource يرجّع `download_url` داخلي.
+- **حد الحجم غير محسوم P-26**؛ يُقرأ من config ولا يُثبّت رقم في الكود قبل القرار.
+- **عدد الأهداف المطلوب غير محسوم P-31**؛ لا تُفرض قاعدة "≥ 1" قبل القرار.
+- الحذف soft delete فقط؛ الملف يبقى (retention P-26). لا حذف نهائي لتقرير له تاريخ تقدم
+  بسبب `goal_progress_history.report_id RESTRICT`.
 
 ### 4.7 Homework
 
@@ -379,9 +467,13 @@ Indexes `(appointment_date)`, `(child_id)`, `(branch_id)`, `(specialist_id)`.
 Index `(recipient_user_id, is_read, created_at DESC)`.
 
 #### `audit_logs`
-`user_id` nullable → SET NULL · `actor_role` varchar(40) null · `action` varchar(100) · `entity_name` varchar(100) · `record_id` uuid null · `old_values` jsonb null · `new_values` jsonb null · `ip_address` inet null · `user_agent` varchar(255) null · `created_at`.
+`user_id` nullable → **RESTRICT** · `actor_role` varchar(40) null · `action` varchar(100) · `entity_name` varchar(100) · `record_id` uuid null · `old_values` jsonb null · `new_values` jsonb null · `ip_address` inet null · `user_agent` varchar(255) null · `created_at`.
 Indexes `(entity_name, record_id)`, `(user_id, created_at DESC)`, `(created_at DESC)`.
 Trigger `audit_logs_immutable` يمنع `UPDATE`/`DELETE`.
+
+> **تعارض تم تصحيحه:** `SET NULL` كان ينفّذ `UPDATE` على `audit_logs` عند حذف المستخدم،
+> فيصطدم بـ Trigger المنع. لذلك `user_id` = `RESTRICT`، والحذف النهائي للمستخدم غير مدعوم.
+> `user_id` يبقى nullable لعمليات النظام/المجهولة، و`actor_role` يحفظ الدور تاريخيًا (D-036).
 
 ---
 
@@ -412,11 +504,15 @@ effective(user):
 |---|---|---|
 | I-1 | فقط SUPER_ADMIN يملك `permissions.manage` — بما فيه تعديل `user_permissions` و`roles` | Seeder + Policy |
 | I-2 | لا يمكن تعديل `role_id` أو `is_active` أو `user_permissions` الخاصة بالمستخدم نفسه | Policy + FormRequest |
-| I-3 | CO_ADMIN ينشئ/يعدّل حسابات **SPECIALIST فقط** — حتى لو مُنح صلاحية `users.manage` لاحقًا | `RoleAssignmentPolicy` (قاعدة صريحة، ليست level فقط) |
+| I-3 | CO_ADMIN ينشئ/يعدّل حسابات **SPECIALIST فقط** — حتى لو مُنح أي صلاحية إدارية لاحقًا. إنشاء الحساب يمر عبر `specialists.manage` وليس `users.*` | `RoleAssignmentPolicy` (قاعدة صريحة، ليست level فقط) |
 | I-4 | لا يُمنح مستخدم صلاحية لا يملكها المُنح (Delegation safety) | `GrantPermissionAction` |
 | I-5 | لا يمكن تعيين دور `level >= actor.level` إلا لـ SUPER_ADMIN | `RoleAssignmentPolicy` |
 | I-6 | لا `user_permissions` على SUPER_ADMIN (تجاوزه ثابت) | Validation + DB guard تطبيقي |
 | I-7 | أي تغيير في الدور/الصلاحيات/التعطيل → `audit_logs` بقيم قديمة/جديدة | Observer/Action |
+| I-8 | CO_ADMIN لا يغيّر `role_id` لأي مستخدم، ولا يمنح/يسحب صلاحيات، ولا ينشئ PARENT/RECEPTION/CO_ADMIN | Policy + Service |
+| I-9 | لا يستطيع أي مستخدم تعديل دوره أو حالته أو صلاحياته بنفسه (يشمل SUPER_ADMIN) | Policy + FormRequest |
+| I-10 | PARENT لا يصل إلى أي endpoint إداري، ولا يرى إلا أطفاله (404 عند عدم الملكية) | ChildPolicy + Query Scope |
+| I-11 | RECEPTION بلا أي صلاحية حتى P-02؛ لا يُفعّل دوره ضمنيًا بأي Seeder/Policy | Seeder + Policy |
 
 ### 5.3 الصلاحيات المبدئية (Seed)
 
@@ -445,16 +541,22 @@ effective(user):
 
 - **SUPER_ADMIN:** تجاوز كامل (تُسجَّل كل الصلاحيات للعرض فقط).
 - **CO_ADMIN:** مجموعة محافظة قابلة للتعديل فرديًا:
-  `children.*`, `parents.*`, `cases.*` (بدون `assign_specialist`؟ لا — يملكها),
-  `assessments.view_all/create/update/manage_*`, `consents.*`, `plans.*`, `goals.*`,
-  `reports.view_all`, `homework.view`, `appointments.*`, `notifications.view`, `specialists.view/manage`.
-  **لا يملك:** `admins.manage`, `users.manage`, `permissions.manage`, `audit_logs.view`, `reports.hide_from_parent`.
+  `children.*`, `parents.*`, `cases.view_all/create/update` (بدون `cases.assign_specialist` افتراضيًا — P-13),
+  `assessments.view_all/create/update/manage_*`, `consents.view` (بدون `consents.record` افتراضيًا — P-12),
+  `plans.*`, `goals.*`, `reports.view_all`, `homework.view`, `appointments.*`, `notifications.view`,
+  `specialists.view/manage` (إنشاء/تعديل حسابات SPECIALIST فقط، وليس `users.*`).
+  **لا يملك:** `admins.manage`, `permissions.manage`, `users.*` الإدارية, `audit_logs.view`,
+  `reports.hide_from_parent`, و`consents.record`/`cases.assign_specialist` قبل P-12/P-13.
 - **SPECIALIST:** `cases.view_assigned`, `assessments.view_assigned`, `plans.view`,
   `goals.record_progress`, `reports.view_assigned/create/download`,
   `homework.view/create/update`, `appointments.view`, `notifications.view`.
 - **PARENT:** `children.view_own`, `assessments.view_own`, `reports.download`,
-  `homework.view/complete/comment`, `consents.record`, `notifications.view`.
+  `homework.view/complete/comment`, `notifications.view`.
+  **بدون `consents.record`** حتى P-12 (لا نفترض أن ولي الأمر يسجّل الإقرار بنفسه).
 - **RECEPTION:** **بدون أي صلاحية في v1** حتى اعتماد P-02.
+
+> **ملاحظة:** أي صلاحية افتراضية معلّمة بـ PENDING ليست جزءًا من العقد؛
+> SUPER_ADMIN يستطيع منحها فرديًا بعد القرار فقط. لا يعتمد أي كود على وجودها مسبقًا.
 
 ---
 
@@ -483,10 +585,14 @@ effective(user):
   - يتحقق أن المستخدم الهدف دوره SPECIALIST و`is_active = true`.
   - يضبط `specialist_id`, `assigned_at = now()`, `assigned_by_user_id = actor`.
   - يسجّل audit (`case.assigned`) بالقيم القديمة/الجديدة.
+- **مَن يملك `cases.assign_specialist` غير محسوم (P-13).** الافتراضي المؤقت: SUPER_ADMIN فقط؛
+  CO_ADMIN لا يملكها افتراضيًا، لكن SUPER_ADMIN قد يمنحها فرديًا بعد القرار.
 - `Case::requireAssigned()` أو `EnsureCaseIsAssigned` Action تُستدعى في كل Action علاجي.
-- إعادة الإسناد (Reassignment): مسموحة إداريًا مع audit، لكن **غير محسومة** (P-13):
+- إعادة الإسناد (Reassignment): **غير محسومة** (P-13):
+  - هل تُسمح؟ مَن يملكها؟
   - هل تُنقل الخطط والتقارير السابقة؟ (التقارير تحتفظ بـ `specialist_id` القديم — لا تتغير.)
-  - هل يُمنع الأخصائي القديم من الوصول فورًا؟ (نعم افتراضيًا.)
+  - هل يُمنع الأخصائي القديم من الوصول فورًا؟
+- **`plan_specialists` لا يمنح وصولًا للـ Case.** أي أخصائي غير مسند لا يرى الحالة حتى P-13.
 - الحالات غير النهائية لا تُستخدم كبوابة (لأن قيمها غير معتمدة).
 
 ---
@@ -498,8 +604,8 @@ effective(user):
 ```
 1. الأخصائي المسند للـ Case يرفع ملف PDF.
 2. يحدد session_date.
-3. يختار هدفًا واحدًا أو أكثر من أهداف خطط نفس الـ Case
-   التي تم العمل عليها في الجلسة.
+3. يختار الأهداف التي عمل عليها في الجلسة من أهداف خطط نفس الـ Case.
+   (العدد الأدنى غير محسوم — P-31؛ لا تُفرض قاعدة "≥ 1" قبل القرار.)
 4. يسجّل النسبة الحالية (0–100) لكل هدف مختار.
 5. النظام داخل transaction واحدة:
    أ. يحفظ reports + metadata الملف
@@ -509,6 +615,9 @@ effective(user):
    ج. يسجّل audit(report.created)
 ```
 
+> **ليس Module لإدارة الجلسات:** لا `sessions` table ولا `session_id` ولا محرر تقارير.
+> التقرير ملف PDF جاهز + بيانات وصفية + ربط أهداف.
+
 ### 7.2 قواعد التحقق
 
 | # | القاعدة | الخطأ |
@@ -517,11 +626,11 @@ effective(user):
 | R-2 | `case.specialist_id IS NOT NULL` | 422 `CASE_NOT_ASSIGNED` |
 | R-3 | كل `goal_id` تابع لخطة `plan.case_id = report.case_id` | 422 `GOAL_NOT_IN_CASE` |
 | R-4 | لا تكرار لنفس `goal_id` في نفس الطلب | 422 |
-| R-5 | عدد الأهداف ≥ 1 | 422 |
+| R-5 | **عدد الأهداف: مؤقت — P-31.** لا تُثبّت قاعدة "≥ 1" ولا "≥ 0" قبل القرار | 422 مؤقت |
 | R-6 | `session_date` ليست في المستقبل | 422 |
-| R-7 | الملف PDF حقيقي (`mime` + magic bytes)، الحجم ≤ الحد المعتمد | 422 `INVALID_FILE` |
+| R-7 | الملف PDF حقيقي (`mime` + magic bytes)، الحجم ≤ الحد المعتمد (P-26) | 422 `INVALID_FILE` |
 | R-8 | الملف يُحفظ باسم عشوائي على **private disk** | — |
-| R-9 | لا تعديل على progress history بعد الحفظ | 405/403 |
+| R-9 | لا تعديل/حذف على progress history بعد الحفظ (Trigger + لا endpoint) | 405/403 |
 | R-10 | في v1 لا يوجد endpoint لتحديث التقدم مباشرة؛ التقدم يُسجَّل عبر التقرير فقط | — |
 
 ### 7.3 تخزين الملفات (Security)
@@ -540,9 +649,12 @@ effective(user):
 
 ### 7.4 الأثر على العلاقات
 
-- `goal_progress_history.report_id` (nullable, `SET NULL`) → لا يُفقد تاريخ التقدم.
+- `goal_progress_history.report_id` (nullable, `RESTRICT`) → لا يُحذف تقرير نهائيًا وله تاريخ تقدم؛
+  الحذف العادي soft delete، والتاريخ يبقى مرتبطًا بالتقرير.
 - `reports` لا تحتاج pivot مع `goals`؛ صفوف التقدم هي الرابط.
 - `goals.progress_percentage` يبقى القيمة الحالية للقراءة السريعة/charts.
+- لا يوجد Endpoint مباشر لتحديث `goals.progress_percentage` في v1؛
+  `RecordGoalProgressAction` داخلي يُستدعى من رفع التقرير (D-037).
 
 ---
 
@@ -561,62 +673,54 @@ effective(user):
 
 ## 9. كود الطفل
 
-### 9.1 التوليد
+### 9.1 التوليد (مؤكد — D-041)
 
 ```
-child_code = first2(transliterate(child_name)) . first2(transliterate(parent_name)) . nextval(sequence)
+child_code = first2(A-Z from child_name) . first2(A-Z from parent_name) . nextval(child_code_sequence)
 ```
 
+- أسماء الأطفال وولي الأمر تُدخل **بالإنجليزية**.
+- **لا Transliteration** من العربية، ولا خريطة تحويل.
 - `child_code varchar(20)` unique · `sequence_number bigint` unique.
 - `CREATE SEQUENCE child_code_sequence START 1` — **لا MAX+1**.
 - الفجوات مقبولة. الكود لا يُعاد استخدامه حتى بعد soft delete.
 
-### 9.2 الخوارزمية
+### 9.2 الخوارزمية الأساسية
 
-1. تنظيف الاسم: إزالة التشكيل والتطويل، توحيد المسافات، إزالة الأرقام والرموز.
-2. Transliteration إلى Latin (خريطة في `config/child_code.php`).
-3. Uppercase + إزالة أي حرف غير `A-Z`.
-4. أخذ أول **حرفين لاتينيين** من الناتج الكامل (وليس من أول حرفين عربيين).
+1. `trim` ثم `Uppercase`.
+2. أخذ أول **حرفين إنجليزيين `A-Z`** من اسم الطفل، وأول حرفين من اسم ولي الأمر.
+3. دمج الحرفين + `nextval(child_code_sequence)`.
 
-> هذا يحل مشكلة الحروف المزدوجة: "شادي" → `SHADY` → `SH`، و"خالد" → `KHALED` → `KH`.
+> مثال: `"Muhammad"` + `"Ali"` → `MUAL` + الرقم التسلسلي.
+> التعامل مع الرموز/المسافات غير المعتادة يبقى ضمن الحالات الحدّية P-03.
 
-### 9.3 خريطة أساسية (قابلة للتعديل)
+### 9.3 الحالات الحدّية (P-03 — غير محسومة)
 
-| عربي | لاتيني | عربي | لاتيني | عربي | لاتيني |
-|---|---|---|---|---|---|
-| ا / أ / آ | A | ح | H | ع | A |
-| إ | E | خ | KH | غ | GH |
-| ب | B | د | D | ف | F |
-| ت | T | ذ | DH | ق | Q |
-| ث | TH | ر | R | ك | K |
-| ج | J | ز | Z | ل | L |
-| س | S | ش | SH | م | M |
-| ص | S | ض | D | ن | N |
-| ط | T | ظ | Z | ه | H |
-| و | W | ي / ى | Y | ة | H |
-| ؤ | W | ئ | Y | ء | (يُحذف) |
+| الحالة | الافتراضي المقترح | ملاحظة |
+|---|---|---|
+| اسم أقل من حرفين إنجليزيين | رفض + fallback يدوي | لا يُخترع سلوك قبل P-03 |
+| اسم يحتوي رموزًا/مسافات | تجاهل غير `A-Z` ثم أخذ أول حرفين | مقترح |
+| اسم مختلط عربي/إنجليزي | غير محسوم | العميل أكد الإنجليزية |
+| إدخال `initials` يدويًا | مقترح: نعم + audit | الصلاحية غير محددة |
+| رسالة الخطأ | ممنوع إظهار الاسم | إلزامي |
 
-### 9.4 الحالات الخاصة (موثقة ومسجلة في P-03)
+**Fallback اليدوي (مقترح — P-03):** يسمح النظام لموظف مخوّل بإرسال
+`child_initials` و`parent_initials` (حرفان `A-Z` لكل منهما) عند فشل التحقق،
+مع تسجيل العملية في `audit_logs` **بدون** الاسم.
+**الصلاحية المطلوبة للـ fallback غير محددة** (هل تكفي `children.create` أم صلاحية منفصلة؟)
+ولا يُنفَّذ الـ endpoint قبل اعتماد P-03.
 
-| الحالة | الافتراضي في v3 | مثال | ملاحظة |
-|---|---|---|---|
-| اسم بأل التعريف | **لا تُحذف** | "الحسين" → `AL` | قد يفضّل العميل `HU` |
-| اسم مركّب | لا معالجة خاصة | "عبد الرحمن" → `AB` | أول حرفين من الناتج اللاتيني |
-| اسم غير عربي | تحويل مباشر بعد Uppercase | "Adam" → `AD` | يعمل |
-| اسم بحرف واحد | فشل الإدخال | "ع" | يحتاج `child_initials` يدويًا |
-| حرف بلا مقابل | فشل الإدخال | حروف فارسية/أردية | fallback يدوي |
-| همزات | A / E / A | "إيمان" → `EM` (IMAN) | حسب الخريطة |
-| مسافات متعددة | تُطوى | "محمد   علي" → `MO` | — |
+**مصدر اسم ولي الأمر:** إن كان الحساب موجودًا، يُستخدم `users.name` فقط إذا اعتُمد تخزينه (P-04)؛
+وإلا يُرسَل `parent_name` في الطلب ويُستخدم لتوليد الكود ثم يُهمَل. لا يُفترض أي منهما.
 
-**Fallback اليدوي (مقترح):** يسمح النظام لموظف مخوّل بإرسال
-`child_initials` و`parent_initials` (حرفان `A-Z` لكل منهما) عند فشل التحويل،
-مع تسجيل العملية في `audit_logs` **بدون** الاسم. يحتاج اعتماد P-03.
+### 9.4 الخصوصية
 
-### 9.5 الخصوصية
-
-- `child_name` و`parent_name` (عند إنشاء ولي أمر جديد) حقول Request فقط.
-- مستثناة من `$fillable` والـ audit والـ logs والـ exception payloads.
-- اختبار إلزامي: بعد التسجيل، `SELECT` على كل الجداول + `audit_logs` لا يحتوي الاسم.
+- `child_name` حقل Request فقط — **لا يوجد عمود له في أي جدول**.
+- `parent_name` يُستخدم لتوليد الكود؛ مصدره وتخزينه معلّق P-04.
+- مستثنيان من `$fillable` والـ audit والـ logs والـ exception payloads ورسائل أخطاء الـ Validation.
+- ممنوع تسجيل Request payload كاملًا في أي log/queue/audit.
+- اختبار إلزامي: بعد التسجيل، `SELECT` على كل الجداول + `audit_logs` + ملفات الـ log
+  لا تحتوي اسم الطفل، ولا قيمة `parent_name` إن كانت request-only.
 
 ---
 
@@ -634,23 +738,34 @@ POST /children  (transaction)
   if duplicate consent_type_id               → 422 CONSENT_DUPLICATE
   if accepted_at > now()                     → 422 CONSENT_DATE_INVALID
 
-  create child + consents (accepted_at = provided ?? now, accepted_by = actor)
+  create child
+  create consents:
+    accepted_at            = provided ?? now
+    accepted_by_user_id    = parent user if digital acceptance, else NULL
+    recorded_by_user_id    = actor (الموظف/المستخدم الذي سجّل)
+    consent_version        = NULL حتى P-12
+    consent_text_snapshot  = NULL حتى P-12 (لا نص مُختلق)
 ```
 
 - جميع الإقرارات تُنشأ **داخل نفس transaction** الخاصة بتسجيل الطفل.
 - أي فشل → rollback كامل (لا طفل بدون إقرارات).
 - `consent_types` الثلاثة تُحمى: لا deactivate ولا delete ولا CRUD إداري.
+- **الفرض يشمل الأنواع المطلوبة النشطة فقط**؛ إضافة أنواع اختيارية أو رفضها سلوك غير محسوم (P-12).
+- **لا نص قانوني في الكود/الـ Seeder:** `description` مؤقت وصفي فقط، والنص الفعلي ينتظر العميل/القانوني.
+- **سحب/تصحيح الإقرار غير مسموح في v1**، لكنه سؤال قانوني معلّق P-12 (لا يُثبّت كمنع نهائي).
 
 ### 10.2 الاختبارات الإلزامية
 
 1. طفل بدون consents → 422.
 2. طفل بـ 2 من 3 → 422 مع تحديد الناقص.
-3. طفل بـ 4 أنواع (منها غير مطلوب) → 422.
+3. طفل بـ 4 أنواع (منها غير مطلوب) → 422 **مؤقت** (P-12 يحدد سياسة الأنواع الاختيارية).
 4. `consent_type_id` مكرر → 422.
 5. `accepted_at` في المستقبل → 422.
-6. نجاح → 3 صفوف بـ `accepted_at` غير null.
-7. محاولة `PUT/DELETE` على consent → 405.
-8. ولي أمر يحاول تسجيل إقرار لطفل غيره → 404.
+6. نجاح → 3 صفوف بـ `accepted_at` غير null و`recorded_by_user_id` = المنفّذ.
+7. قبول رقمي → `accepted_by_user_id` = ولي الأمر؛ قبول ورقي → `accepted_by_user_id = NULL`.
+8. محاولة `PUT/DELETE` على consent → 405.
+9. ولي أمر يحاول تسجيل إقرار لطفل غيره → 404.
+10. لا نص قانوني مُختلق في `consent_text_snapshot` قبل P-12.
 
 ---
 
@@ -671,11 +786,14 @@ POST /children  (transaction)
 | 11 | `consent_types`, `child_consents` | 5 |
 | 12 | `treatment_plans`, `plan_specialists`, `goals` | 6 |
 | 13 | `reports` | 6 |
-| 14 | `goal_progress_history` | 12, 13 |
+| 14 | `goal_progress_history` + Trigger `goal_progress_history_immutable` | 12, 13 |
 | 15 | `homework`, `homework_comments` | 6 |
 | 16 | `appointments` | 4, 5 |
 | 17 | `notifications` | 2 |
-| 18 | `audit_logs` + trigger | 2 |
+| 18 | `audit_logs` + Trigger `audit_logs_immutable` | 2 |
+
+> **بوابة:** لا يُنفَّذ أي migration قبل اعتماد الوثيقة (Gate A) وتجهيز البيئة (Gate B).
+> هذا الترتيب ملزم حتى لو بدت بعض الجداول مستقلة.
 
 ---
 
@@ -693,7 +811,8 @@ POST /children  (transaction)
 `goal_progress_history(report_id, goal_id) WHERE report_id IS NOT NULL`.
 
 ### 12.2 CHECK
-`children.age 0..120` · `functional_scale_scores.score 0..10` ·
+`children.age 0..120` · `children.child_code ~ '^[A-Z]{4}[0-9]+$'` ·
+`functional_scale_scores.score 0..10` ·
 `treatment_plans.end_date >= start_date` · `goals.progress_percentage 0..100` ·
 `goal_progress_history.previous/new 0..100` · `reports.file_mime = 'application/pdf'` ·
 `reports.file_size > 0` · `reinforcer_catalog.category IN (...)` ·
@@ -702,7 +821,14 @@ POST /children  (transaction)
 ### 12.3 NOT NULL الحاكمة
 `users.role_id` · `users.password` · `children.parent_id` · `children.child_code` ·
 `children.sequence_number` · `children.initial_problem` · `cases.child_id/branch_id` ·
-`reports.case_id/specialist_id/session_date/file_*` · `child_consents.accepted_at`.
+`reports.case_id/specialist_id/session_date/file_*` · `child_consents.accepted_at` ·
+`child_consents.recorded_by_user_id`.
+
+### 12.4 Triggers الحاكمة
+`audit_logs_immutable` (UPDATE/DELETE ممنوع) ·
+`goal_progress_history_immutable` (UPDATE/DELETE ممنوع).
+**لا Trigger على `child_consents` في v1** حتى تُحسم سياسة التصحيح/السحب (P-12)؛
+المنع تطبيقي فقط (لا endpoints).
 
 ---
 
@@ -721,6 +847,9 @@ POST /children  (transaction)
 | functional_scale_scores | `(scale_id)` | charts/إحصاءات. |
 | assessment_reinforcers | `(reinforcer_id)` | استخدام المعززات. |
 | child_consents | `(consent_type_id)` | تدقيق الإقرارات. |
+| child_consents | `(accepted_by_user_id)` | تتبع القبول الرقمي. |
+| child_consents | `(recorded_by_user_id)` | مَن سجّل الإقرار. |
+| cases | `(assigned_by_user_id)` | تتبع مَن أسند. |
 | treatment_plans | `(case_id)` | خطط الحالة. |
 | plan_specialists | `(specialist_id)` | خطط الأخصائي. |
 | goals | `(plan_id, display_order)` | ترتيب الأهداف. |
@@ -739,16 +868,48 @@ POST /children  (transaction)
 
 ---
 
-## 14. سياسات الحذف
+## 14. سياسات الحذف (موحّدة)
 
-| الجدول | softDeletes | ملاحظة |
-|---|---|---|
-| users, parents, specialists | ✅ | تعطيل/أرشفة. |
-| branches, knowledge_sources | ✅ / `is_active` | لا حذف لفرع له Cases. |
-| children, cases | ✅ | لا حذف نهائي. |
-| treatment_plans, goals, reports, homework, appointments | ✅ | سجلات تشغيلية. |
-| initial_assessments, answers, scores, consents, progress history, comments, audit | ❌ | تاريخية/append-only. |
-| reports (files) | الملف يبقى بعد soft delete | retention P-26. |
+> **القاعدة:** لا حذف نهائي لبيانات سريرية/قانونية. `soft delete` للسجلات التشغيلية،
+> و`is_active = false` للـ lookups. `CASCADE` مسموح فقط للـ pivots والصفوف التابعة
+> التي لا معنى لها بدون الأب (answers/scores/reinforcers)، وليس لسجلات مستقلة.
+
+| الجدول | softDeletes | is_active | حذف نهائي | ملاحظة |
+|---|---|---|---|---|
+| `roles` | ❌ | ❌ | ❌ | بيانات نظام. |
+| `permissions` | ❌ | ❌ | ❌ | بيانات نظام. |
+| `role_permissions` | ❌ | ❌ | CASCADE مع الدور/الصلاحية | pivot. |
+| `users` | ✅ | ✅ | ❌ | تعطيل/أرشفة؛ الحذف النهائي غير مدعوم. |
+| `user_permissions` | ❌ | ❌ | CASCADE مع المستخدم/الصلاحية | pivot. |
+| `parents` | ✅ | ❌ | ❌ | بروفايل ولي الأمر. |
+| `specialists` | ✅ | ❌ | ❌ | بروفايل الأخصائي. |
+| `branches` | ✅ | ✅ | ❌ إذا له Cases | partial unique. |
+| `knowledge_sources` | ❌ | ✅ | ❌ إذا مستخدم | تعطيل فقط (D-24). |
+| `children` | ✅ | ❌ | ❌ | سجل سريري. |
+| `cases` | ✅ | ❌ | ❌ | سجل سريري. |
+| `initial_assessments` | ❌ | ❌ | ❌ | تقييم واحد، immutable. |
+| `assessment_questions` | ❌ | ✅ | ❌ | تعطيل فقط. |
+| `assessment_answers` | ❌ | ❌ | CASCADE مع التقييم (تنظيف اختبارات فقط) | snapshot. |
+| `functional_scales` | ❌ | ✅ | ❌ | تعطيل فقط. |
+| `functional_scale_scores` | ❌ | ❌ | CASCADE مع التقييم | snapshot. |
+| `reinforcer_catalog` | ❌ | ✅ | ❌ | تعطيل فقط. |
+| `assessment_reinforcers` | ❌ | ❌ | CASCADE مع التقييم | snapshot. |
+| `consent_types` | ❌ | ✅ | ❌ | Seed نظام؛ لا CRUD. |
+| `child_consents` | ❌ | ❌ | ❌ | سجل قانوني؛ لا UPDATE/DELETE. |
+| `treatment_plans` | ✅ | ❌ | ❌ | سجل تشغيلي. |
+| `plan_specialists` | ❌ | ❌ | CASCADE مع الخطة/الأخصائي | pivot مؤكد (D-040). |
+| `goals` | ✅ | ❌ | ❌ | سجل تشغيلي. |
+| `goal_progress_history` | ❌ | ❌ | ❌ | Trigger يمنع UPDATE/DELETE. |
+| `reports` | ✅ | ❌ | ❌ | الملف يبقى (P-26). |
+| `homework` | ✅ | ❌ | ❌ | سجل تشغيلي. |
+| `homework_comments` | ❌ | ❌ | CASCADE مع الواجب (حذف نهائي غير مستخدم) | append-only. |
+| `appointments` | ✅ | ❌ | ❌ | سجل تشغيلي. |
+| `notifications` | ❌ | ❌ | CASCADE مع المستخدم | بيانات غير سريرية. |
+| `audit_logs` | ❌ | ❌ | ❌ | Trigger يمنع UPDATE/DELETE. |
+
+> **ملاحظة:** `reports` soft delete لا يغيّر `goal_progress_history.report_id`.
+> الحذف النهائي لتقرير له تاريخ تقدم ممنوع بـ `RESTRICT`؛ إن تطلب العميل حق المحو (P-20)
+> فسيُصمم إجراء منفصل، وليس حذفًا عاديًا (D-042).
 
 ---
 
@@ -758,21 +919,35 @@ POST /children  (transaction)
 2. `nextval` متوازٍ (50 طلب) → 50 رقمًا مختلفًا.
 3. إدخال `score = 11` → DB exception.
 4. إدخال `progress = -1` → DB exception.
-5. `UPDATE audit_logs` → DB exception.
-6. `DELETE child_consents` → ممنوع تطبيقيًا (لا endpoint).
-7. تعديل سؤال → الإجابة القديمة تحتفظ بالنص القديم.
-8. تعديل اسم مقياس → الدرجة القديمة تحتفظ بالاسم القديم.
-9. حذف تقرير soft → `goal_progress_history.report_id` يبقى كما هو (soft delete لا يفعّل SET NULL).
-10. حذف تقرير hard (اختبار فقط) → `report_id = NULL` والتقدم يبقى.
-11. `case.specialist_id = NULL` + محاولة إنشاء خطة → 422.
-12. رفع غير PDF → 422، ولا يُحفظ أي ملف.
-13. تقرير لهدف في Case آخر → 422.
-14. طفل بدون الإقرارات الثلاثة → 422 + لا صفوف في `children`.
+5. `UPDATE audit_logs` / `DELETE audit_logs` → DB exception.
+6. `UPDATE goal_progress_history` / `DELETE goal_progress_history` → DB exception.
+7. `DELETE child_consents` → ممنوع تطبيقيًا (لا endpoint).
+8. تعديل سؤال → الإجابة القديمة تحتفظ بالنص القديم.
+9. تعديل اسم مقياس → الدرجة القديمة تحتفظ بالاسم القديم.
+10. حذف تقرير soft → `goal_progress_history.report_id` يبقى كما هو.
+11. حذف تقرير hard وله تاريخ تقدم → DB exception (`RESTRICT`).
+12. `case.specialist_id = NULL` + محاولة إنشاء خطة → 422.
+13. رفع غير PDF → 422، ولا يُحفظ أي ملف.
+14. تقرير لهدف في Case آخر → 422.
+15. طفل بدون الإقرارات الثلاثة → 422 + لا صفوف في `children`.
+16. تسجيل طفل ثانٍ لنفس ولي الأمر → نفس `parent_id`، ولا `users`/`parents` جديد.
+17. محاولة إنشاء ولي أمر مكرر بنفس identifier → 422.
+18. `child_name` غير موجود في أي جدول/`audit_logs`/ملفات الـ log.
+19. `child_code` لا يطابق `^[A-Z]{4}[0-9]+$` → DB exception.
+20. إقرار رقمي: `accepted_by_user_id` = ولي الأمر، `recorded_by_user_id` = المنفّذ.
+21. حذف مستخدم نهائيًا وله `audit_logs` → DB exception (`RESTRICT`).
+22. تقرير `visible_to_parent = false` → 404 لولي الأمر.
 
 ---
 
-## 16. خارج نطاق v3 (مؤكد)
+## 16. خارج نطاق v4 (مؤكد)
 
 `user_roles` · `sessions` · `payments` · `attachments` (عدا تقارير PDF) · `details jsonb` ·
 `session_notes` · `final_assessments` · `case_status_history` · `specialty` · `settings` ·
-`password_reset_tokens` · قنوات الإشعارات · Form Builder.
+`password_reset_tokens` · قنوات الإشعارات · Form Builder · Consent revocation · Consent wording ·
+Permanent deletion/anonymization (P-20).
+
+**معلّق وليس خارج النطاق:** Parent auth (P-01) · Staff auth identifier (P-32) ·
+Parent account delivery (P-29) · Consent recording/versioning (P-12) ·
+Appointment specialist (P-15) · Notifications (P-16) · Report goal count (P-31) ·
+Permanent deletion/anonymization (P-20) · Child-code edge cases (P-03) · Report hide role (P-07).
