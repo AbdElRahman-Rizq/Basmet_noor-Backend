@@ -18,7 +18,7 @@
 | **C — اعتماد الـ Schema** | نجاح اختبارات §15 + تأكيد أن لا migration يعتمد على PENDING | كتابة الـ migrations + Models + اختبارات §15. |
 | **D — Backend** | نجاح Gate C | كود التطبيق (Actions/Controllers/Policies/endpoints) حسب Phase 2+. |
 
-> **حالة الآن:** الوثائق محدّثة (Gate A: بانتظار الاعتماد) · **Gate B: مكتمل — بنية تحتية فقط** · Gate C/D: لم تبدأ.
+> **حالة الآن:** الوثائق متسقة وجاهزة لاعتماد Gate A · **Gate B: مكتمل — بنية تحتية فقط** · Gate C/D: لم تبدأ.
 >
 > **قاعدة صارمة:** لا يُنشأ مشروع Laravel ولا migration ولا كود تطبيقي قبل Gate A.
 > **Gate B لا ينشئ Laravel**؛ يقتصر على التحقق من البنية التحتية.
@@ -58,8 +58,8 @@
 |---|---|---|
 | `[x]` T-0.1 | `compose.yaml` + `Dockerfile` (بلا Laravel) | `app` (php 8.4-cli + pdo_pgsql) + `db` (postgres:17-alpine) + volume + healthcheck + `.env`. |
 | `[x]` T-0.1b | التحقق من البنية التحتية | PHP/Composer/pdo_pgsql + PostgreSQL healthy + PDO `SELECT 1` — **بلا جداول**. |
-| `[!]` T-0.2 | إنشاء مشروع Laravel 13 داخل container — **بعد Gate A** | `/up` يرجّع 200. |
-| `[!]` T-0.3 | ضبط `.env` والتحقق من اتصال PostgreSQL عبر Laravel | `SELECT 1` أو `db:show` ناجح — **بلا migrations**. |
+| `[x]` T-0.2 | إنشاء مشروع Laravel 13 داخل container — **بعد Gate A** | `/up` يرجّع 200. ✅ Laravel 13.42.0 |
+| `[x]` T-0.3 | ضبط `.env` والتحقق من اتصال PostgreSQL عبر Laravel | `SELECT 1` ناجح — **بلا migrations**. ✅ 0 جداول |
 | `[!]` T-0.4 | `routes/api.php` + health endpoint | JSON موحّد — **بلا Sanctum migrations**. |
 | `[!]` T-0.5 | Pest + قاعدة `basma_noor_test` | اختبار Unit ناجح — **بلا migrations**. |
 | `[!]` T-0.6 | Response envelope + Exception Handler | 401/403/404/422/429 بصيغة موحّدة. |
