@@ -60,7 +60,7 @@
 | `[x]` T-0.1b | التحقق من البنية التحتية | PHP/Composer/pdo_pgsql + PostgreSQL healthy + PDO `SELECT 1` — **بلا جداول**. |
 | `[x]` T-0.2 | إنشاء مشروع Laravel 13 داخل container — **بعد Gate A** | `/up` يرجّع 200. ✅ Laravel 13.42.0 |
 | `[x]` T-0.3 | ضبط `.env` والتحقق من اتصال PostgreSQL عبر Laravel | `SELECT 1` ناجح — **بلا migrations**. ✅ 0 جداول |
-| `[!]` T-0.4 | `routes/api.php` + health endpoint | JSON موحّد — **بلا Sanctum migrations**. |
+| `[x]` T-0.4 | `routes/api.php` + health endpoint | JSON موحّد — **بلا Sanctum migrations**. ✅ `/api/v1/health` = 200 |
 | `[!]` T-0.5 | Pest + قاعدة `basma_noor_test` | اختبار Unit ناجح — **بلا migrations**. |
 | `[!]` T-0.6 | Response envelope + Exception Handler | 401/403/404/422/429 بصيغة موحّدة. |
 | `[!]` T-0.7 | Scramble + `/docs/api` | OpenAPI بدون أخطاء. |
