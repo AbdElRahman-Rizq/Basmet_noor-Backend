@@ -5,7 +5,7 @@
 >
 > **حالة الرموز:** `[ ]` لم تبدأ · `[~]` قيد التنفيذ · `[x]` مكتملة · `[!]` محظورة (PENDING)
 
-**آخر تحديث:** 2026-11-13 — توضيحات Gate B متزامنة مع Database Design **v4**. لا تنفيذ قبل اعتماد v4.
+**آخر تحديث:** 2026-11-13 — توضيحات Gate B + D-045. **Gate B = بنية تحتية فقط بلا Laravel.** لا تنفيذ قبل اعتماد v4.
 
 ---
 
@@ -13,12 +13,15 @@
 
 | البوابة | الشرط | ما يُسمح بعده |
 |---|---|---|
-| **A — اعتماد الوثائق** | اعتماد العميل لـ `FINAL_REVIEW_SUMMARY.md` + `DATABASE_DESIGN.md` v4 | تجهيز البيئة فقط. |
-| **B — تجهيز البيئة** | نجاح Phase 0 (Docker/Laravel/Pest) | لا migrations بعد. |
+| **A — اعتماد الوثائق** | اعتماد العميل لـ `FINAL_REVIEW_SUMMARY.md` + `DATABASE_DESIGN.md` v4 | تجهيز البيئة (Gate B) ثم إنشاء Laravel بعد الاعتماد. |
+| **B — تجهيز البيئة** | نجاح التحقق من Docker/PHP/PostgreSQL فقط | **لا Laravel ولا migrations.** إنشاء Laravel بعد Gate A. |
 | **C — اعتماد الـ Schema** | نجاح اختبارات §15 + تأكيد أن لا migration يعتمد على PENDING | كتابة الـ migrations + Models + اختبارات §15. |
 | **D — Backend** | نجاح Gate C | كود التطبيق (Actions/Controllers/Policies/endpoints) حسب Phase 2+. |
 
+> **حالة الآن:** الوثائق محدّثة (Gate A: بانتظار الاعتماد) · **Gate B: مكتمل — بنية تحتية فقط** · Gate C/D: لم تبدأ.
+>
 > **قاعدة صارمة:** لا يُنشأ مشروع Laravel ولا migration ولا كود تطبيقي قبل Gate A.
+> **Gate B لا ينشئ Laravel**؛ يقتصر على التحقق من البنية التحتية.
 > ولا يبدأ أي Backend قبل Gate C. أي مهمة تعتمد على بند `PENDING` تُعلَّم `[!]` أو تُقسَّم.
 
 ---
@@ -48,25 +51,30 @@
 
 ## Phase 0 — البنية التحتية
 
+> **Gate B = T-0.1 + T-0.1b فقط.** لا يُنشأ Laravel داخل Gate B.
+> **T-0.2 → T-0.10 تتطلب اعتماد Gate A أولًا**، ثم إنشاء Laravel؛ ولا migrations قبل Gate C.
+
 | ID | المهمة | معيار القبول |
 |---|---|---|
-| `[ ]` T-0.1 | تشغيل Docker Desktop + `compose.yaml` | `app` (php 8.4-cli + pdo_pgsql) + `db` (postgres:17-alpine) + volume. |
-| `[ ]` T-0.2 | إنشاء مشروع Laravel 13 داخل container | `/up` يرجّع 200. |
-| `[ ]` T-0.3 | ضبط `.env` والتحقق من اتصال PostgreSQL | `SELECT 1` أو `db:show` ناجح — **بلا migrations**. |
-| `[ ]` T-0.4 | `routes/api.php` + health endpoint | JSON موحّد — **بلا Sanctum migrations**. |
-| `[ ]` T-0.5 | Pest + قاعدة `basma_noor_test` | اختبار Unit ناجح — **بلا migrations**. |
-| `[ ]` T-0.6 | Response envelope + Exception Handler | 401/403/404/422/429 بصيغة موحّدة. |
-| `[ ]` T-0.7 | Scramble + `/docs/api` | OpenAPI بدون أخطاء. |
-| `[ ]` T-0.8 | Git init + `.gitignore` + أول commit | `vendor`/`.env` مستثناة. |
-| `[ ]` T-0.9 | سكربتات `make up/test/fresh` | تعمل من داخل الـ container. |
-| `[ ]` T-0.10 | إعداد private disk للتقارير | `storage/app/private/reports` + اختبار كتابة/قراءة. |
+| `[x]` T-0.1 | `compose.yaml` + `Dockerfile` (بلا Laravel) | `app` (php 8.4-cli + pdo_pgsql) + `db` (postgres:17-alpine) + volume + healthcheck + `.env`. |
+| `[x]` T-0.1b | التحقق من البنية التحتية | PHP/Composer/pdo_pgsql + PostgreSQL healthy + PDO `SELECT 1` — **بلا جداول**. |
+| `[!]` T-0.2 | إنشاء مشروع Laravel 13 داخل container — **بعد Gate A** | `/up` يرجّع 200. |
+| `[!]` T-0.3 | ضبط `.env` والتحقق من اتصال PostgreSQL عبر Laravel | `SELECT 1` أو `db:show` ناجح — **بلا migrations**. |
+| `[!]` T-0.4 | `routes/api.php` + health endpoint | JSON موحّد — **بلا Sanctum migrations**. |
+| `[!]` T-0.5 | Pest + قاعدة `basma_noor_test` | اختبار Unit ناجح — **بلا migrations**. |
+| `[!]` T-0.6 | Response envelope + Exception Handler | 401/403/404/422/429 بصيغة موحّدة. |
+| `[!]` T-0.7 | Scramble + `/docs/api` | OpenAPI بدون أخطاء. |
+| `[x]` T-0.8 | Git init + `.gitignore` + أول commit | `vendor`/`.env` مستثناة. |
+| `[~]` T-0.9 | سكربتات `make up/down/shell/composer/artisan/test/logs` | تعمل من داخل الـ container؛ `fresh` يتطلب Laravel. |
+| `[!]` T-0.10 | إعداد private disk للتقارير | `storage/app/private/reports` + اختبار كتابة/قراءة — بعد Laravel. |
 
-**Gate:** نجاح T-0.1 → T-0.10.
+**Gate B:** نجاح T-0.1 + T-0.1b. **ما بعد Gate A:** T-0.2 → T-0.10 (Laravel ثم بقية الإعداد)، وبعدها Gate C.
 
 ---
 
 ## Phase 1 — قاعدة البيانات (Schema v4)
 
+> **شرط مسبق:** اعتماد Gate A ثم إنشاء Laravel (T-0.2).
 > **Gate C:** لا migrations قبل اعتماد v4. ترتيب الـ migrations ملزم حسب `DATABASE_DESIGN.md §11`.
 
 | ID | المهمة | معيار القبول |
@@ -160,7 +168,7 @@
 | `[ ]` T-4.5 | اختيار معززات الطفل + snapshot | لا تكرار. |
 | `[ ]` T-4.6 | إدارة المقاييس (اسم/ترتيب/تفعيل) | الاسم القديم محفوظ في snapshot. |
 | `[ ]` T-4.7 | إدخال درجات 0–10 | -1/11 مرفوضان. |
-| `[ ]` T-4.8 | تعليق الأخصائي (اختياري) | null مسموح. |
+| `[ ]` T-4.8 | تعليق الأخصائي (اختياري) | null مسموح — مؤكد D-045، بلا validation إلزامي. |
 | `[ ]` T-4.9 | Endpoint chart data | مرتب حسب display_order. |
 | `[ ]` T-4.10 | عرض/تدقيق الإقرارات | للقراءة فقط، لا تعديل. |
 | `[ ]` T-4.11 | اختبارات التقييم الكاملة | snapshots + 0..10 + one-per-child. |

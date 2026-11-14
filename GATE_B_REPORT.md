@@ -1,318 +1,253 @@
-# تقرير Gate B — تجهيز البيئة فقط
+# تقرير Gate B — تجهيز البنية التحتية فقط
 
 **المشروع:** بصمة نور (Basmat Nour)
 **التاريخ:** 2026-11-13
-**النطاق:** Gate B فقط — Docker + Laravel 13 + التحقق من الاتصال. **لا** migrations ولا Models ولا Controllers ولا Auth ولا RBAC ولا أي كود أعمال.
-**الحالة:** ✅ مكتمل ومُتحقَّق منه. متوقف بانتظار موافقة صريحة قبل Gate C.
+**النطاق:** Gate B = Docker + PHP + PostgreSQL + التحقق. **لا Laravel، لا migrations، لا كود تطبيقي.**
+**الحالة:** ✅ مكتمل. متوقف بانتظار موافقة صريحة على Gate A قبل إنشاء Laravel.
 
 ---
 
-## 1. ما تم إنجازه باختصار
+## 1. ملخص تغييرات الوثائق
 
-| البند | النتيجة |
+| الملف | التغيير |
 |---|---|
-| تحديث الوثائق بالتوضيحات الخمسة | ✅ D-040 … D-044 |
-| T-0.1 بيئة Docker | ✅ `app` + `db` يعملان |
-| PHP + `pdo_pgsql` | ✅ PHP 8.4.27 |
-| PostgreSQL 17 + Healthcheck + Volume | ✅ 17.12 و`healthy` |
-| اتصال PDO من PHP إلى PostgreSQL | ✅ ناجح |
-| اتصال Laravel بقاعدة البيانات | ✅ `pgsql` |
-| T-0.2 مشروع Laravel 13 | ✅ Framework 13.42.0 |
-| Composer install | ✅ ناجح |
-| `/up` | ✅ HTTP 200 |
-| أسرار خارج Git | ✅ `.env` متجاهَل و`.env.example` بلا كلمة مرور |
-| migrations/models/controllers/business code | ✅ لا يوجد أي منها |
+| `docs/DECISIONS.md` | تأكيد D-041 (أسماء الطفل **وولي الأمر** بالإنجليزية + الرقم التسلسلي Global مستقل). إضافة **D-045** (تعليق الأخصائي اختياري). تقوية D-033/D-044 (الهوية محظورة حتى التأكيد، `unique(mobile)` ليس اعتماد هوية). تصحيح D-039 (Gate B بلا Laravel). |
+| `docs/DATABASE_DESIGN.md` | `specialist_comment` موثّق كـ **اختياري (D-045)**. §9 يوضح أن اسم ولي الأمر إنجليزي وأن التسلسل Global مستقل. تنبيه أن `unique(mobile)` قيد تقني لا مفتاح هوية. تصحيح ترتيب البوابات. |
+| `docs/PENDING_REQUIREMENTS.md` | P-01 يضم أسئلة الهوية الصريحة (ما يعرّف ولي الأمر، كشف الحساب القائم، كفاية الجوال، تغيير الجوال). P-09 يوضح أن تعليق الأخصائي مؤكد اختياري. P-04 يوضح إدخال اسم ولي الأمر بالإنجليزية دون افتراض تخزينه. |
+| `docs/PROJECT_OVERVIEW.md` | Gate B بنية تحتية فقط، وإنشاء Laravel بعد Gate A. إضافة مصطلح Specialist Comment. تحديث حالة Docker. |
+| `docs/PROJECT_ROADMAP.md` | فصل Gate B عن إنشاء Laravel: T-0.1/T-0.1b فقط، وT-0.2→T-0.10 محظورة حتى Gate A. تحديث جدول البوابات وترتيب Phase 0/1. |
+| `docs/FINAL_REVIEW_SUMMARY.md` | إضافة C-31 (تعليق اختياري)، تحديث C-27 (الطفل وولي الأمر)، تصحيح الخطوة التالية، وتوضيح أن اعتماد البنية التحتية لا يعني اعتماد الـ Schema. |
+
+لم يُحذف أي سؤال قديم بلا مرجع، ولم يُحوَّل أي بند معلّق إلى قرار مؤكد.
 
 ---
 
-## 2. تحديث الوثائق (قبل Gate B)
+## 2. القرارات المؤكدة التي أُدمجت
 
-أُضيفت قرارات جديدة دون حذف التاريخ:
+### 2.1 أسماء إنجليزية وكود الطفل (D-041)
+- اسم الطفل **واسم ولي الأمر** يُدخلان بالإنجليزية.
+- الكود = أول حرفين إنجليزيين من اسم الطفل + أول حرفين إنجليزيين من اسم ولي الأمر + رقم تسلسلي.
+- الرقم التسلسلي **Global ومستقل عن الحروف** (D-003).
+- لا Transliteration ولا خريطة تحويل عربية.
+- لم تُضف افتراضات جديدة عن الرموز/الأسماء القصيرة/fallback؛ بقيت في P-03.
+- **لم يُنفَّذ** أي مولد كود.
 
-| القرار | الملخص | الملفات المتأثرة |
+### 2.2 تعليق الأخصائي على المقاييس الوظيفية (D-045)
+- `functional_scale_scores.specialist_comment` يبقى `text NULL`.
+- **اختياري** ولا يُفرض في validation أو قيد قاعدة بيانات.
+- لم يُغيّر P-09 (أسماء المقاييس وطبيعة الدرجة)؛ ما زال معلّقًا.
+- **لم يُنفَّذ** أي endpoint أو validation.
+
+---
+
+## 3. هوية ولي الأمر — ما زالت معلّقة
+
+مؤكد:
+- حساب ولي أمر واحد يدير عدة أطفال (D-033).
+- رقم الجوال وحده **ليس** مفتاح الهوية المعتمد (D-044).
+- `unique(mobile)` في v4 قيد تقني لمنع تكرار بيانات الاتصال، **وليس اعتمادًا للهوية**.
+
+غير محسوم (P-01/P-04/P-29/P-32):
+- ما المعلومات التي تُعرِّف ولي الأمر بشكل فريد؟
+- كيف يُكتشف الحساب القائم عند تسجيل طفل آخر؟
+- هل الجوال كافٍ أم يلزم identifier آخر؟
+- ماذا يحدث عند تغيير رقم الجوال؟
+
+**النتيجة:** لا uniqueness منطقية ولا Find-or-Create ولا Parent Authentication ولا أي endpoint.
+
+---
+
+## 4. الملفات التي رُوجعت/عُدّلت
+
+### وثائق
+- `docs/DATABASE_DESIGN.md`
+- `docs/DECISIONS.md`
+- `docs/PENDING_REQUIREMENTS.md`
+- `docs/PROJECT_OVERVIEW.md`
+- `docs/PROJECT_ROADMAP.md`
+- `docs/FINAL_REVIEW_SUMMARY.md`
+
+### بنية تحتية
+- `compose.yaml`
+- `Dockerfile`
+- `.env.example`
+- `.gitignore`
+- `.dockerignore`
+- `Makefile`
+- `.env` (محلي فقط، غير متتبع)
+
+### Laravel
+- **لا يوجد أي مشروع Laravel.** أُزيلت سقالة كانت قد أُنشئت في محاولة سابقة (قبل توجيه منع إنشاء Laravel)، ولم يبقَ لها أثر:
+  `artisan` · `composer.json` · `composer.lock` · `app/` · `bootstrap/` · `config/` · `database/` · `public/` · `resources/` · `routes/` · `storage/` · `tests/` · `vendor/` · ملفات الجذر الخاصة بـ Laravel.
+
+---
+
+## 5. التحقق من Docker Compose
+
+```powershell
+docker compose config --quiet
+```
+
+**النتيجة:** `compose config: OK`
+
+الخدمات:
+- `app`: PHP 8.4 CLI + `pdo_pgsql` + Composer، تحميل `.env`، bind mount.
+- `db`: `postgres:17-alpine`، healthcheck عبر `pg_isready`، volume `pgdata`.
+- `DB_HOST=db` مضبوط في `.env` و`.env.example`.
+
+---
+
+## 6. بناء صورة PHP
+
+```powershell
+docker compose build app
+```
+
+**النتيجة:** ✅ `basma-noor-app:dev` (البناء استُخدم من الكاش بعد البناء الأول).
+- الصورة تعتمد `php:8.4-cli`.
+- تُثبّت `git` و`unzip` و`libpq-dev`.
+- تُجمّع `pdo_pgsql`.
+- تنسخ Composer 2 من صورة `composer:2`.
+
+---
+
+## 7. PHP والإضافات
+
+```powershell
+docker compose exec -T app php -v
+docker compose exec -T app php -m
+```
+
+**PHP:** 8.4.27 (NTS)
+
+الإضافات المتوفرة:
+`Core, ctype, curl, date, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqlnd, openssl, pcre, PDO, pdo_pgsql, pdo_sqlite, Phar, posix, random, readline, Reflection, session, SimpleXML, sodium, SPL, sqlite3, standard, tokenizer, xml, xmlreader, xmlwriter, Zend OPcache, zlib`
+
+- **`pdo_pgsql`:** ✅ موجود.
+- إضافات Laravel 13 المطلوبة (`ctype`, `filter`, `hash`, `mbstring`, `openssl`, `session`, `tokenizer`): ✅ موجودة.
+- **`intl`:** غير مثبّت. غير مطلوب لتشغيل Laravel أو `/up`، لكنه مطلوب لبعض أوامر العرض مثل `php artisan db:show`. لم يُضف في Gate B.
+- لم يُنشأ أي مشروع Laravel، لذا لم يُختبر `composer install` لمشروع Laravel؛ **Composer نفسه متاح** (انظر §8).
+
+---
+
+## 8. Composer
+
+```powershell
+docker compose exec -T app composer --version
+```
+
+**النتيجة:** Composer 2.11.2 — متاح داخل الحاوية.
+
+> اختبار تثبيت اعتماديات Laravel **غير قابل للتنفيذ** في Gate B لأنه لا يوجد `composer.json` لمشروع Laravel، ولا يُسمح بإنشائه.
+
+---
+
+## 9. PostgreSQL والحالة
+
+```powershell
+docker compose ps
+docker compose restart db
+```
+
+**النتيجة:**
+- الحاوية: `basma-noor-db-1`
+- الصورة: `postgres:17-alpine`
+- الإصدار: **PostgreSQL 17.12**
+- الحالة بعد إعادة التشغيل: `Up ... (healthy)`
+- Healthcheck: `pg_isready -U $POSTGRES_USER -d $POSTGRES_DB`
+- المدة: احتاجت ~30 ثانية بعد إعادة التشغيل حتى تصبح `healthy` (bind/disk بطيء).
+
+---
+
+## 10. اختبار اتصال قاعدة البيانات
+
+بدون Laravel — عبر PDO مباشرة داخل حاوية `app`:
+
+```text
+host=db
+db=basma_noor
+SELECT 1 = 1
+server = PostgreSQL 17.12 on x86_64-pc-linux-musl
+public tables = 0
+```
+
+**النتيجة:** ✅ الاتصال ناجح، و**لا توجد أي جداول** في `public`.
+
+---
+
+## 11. التحقق من الـ Volume الدائم
+
+```powershell
+docker volume inspect basma-noor_pgdata
+docker compose restart db
+```
+
+**النتيجة:**
+- الـ volume: `basma-noor_pgdata`، driver: `local`
+- Mountpoint: `/var/lib/docker/volumes/basma-noor_pgdata/_data`
+- بعد إعادة تشغيل الـ db: `healthy`، و`SELECT 1` أعاد `1`، وعدد الجداول ما زال `0`.
+- هذا يثبت أن قاعدة البيانات تعمل على volume دائم وليس ephemeral.
+
+---
+
+## 12. الأسرار وGit
+
+- `.env` محلي فقط، ومتجاهَل: `git check-ignore .env` → `.gitignore:8:/.env`.
+- `git ls-files .env` → **فارغ** (غير متتبع).
+- `.env.example` يستخدم `DB_PASSWORD=change-me-in-local-env`، ولا يحتوي كلمة المرور الفعلية.
+- `compose.yaml` يقرأ `DB_PASSWORD` من البيئة مع `:?` وليس مكتوبًا في الملف.
+- `APP_KEY` في `.env` المحلي فقط إن وُجد؛ لا يُلتزم.
+- لا توجد credentials في `Dockerfile` أو `compose.yaml` أو `.env.example`.
+
+---
+
+## 13. المشاكل والقيود
+
+| # | البند | الحالة |
 |---|---|---|
-| **D-040** | `plan_specialists` **مؤكد** كجدول مشاركي الخطة، ويسمح بأكثر من أخصائي مسؤول. لا يمنح وصولًا تلقائيًا للـ Case، ولا يُفرض على `goals.specialist_id` في v1. أُغلق P-14. | `DECISIONS.md`, `DATABASE_DESIGN.md`, `PENDING_REQUIREMENTS.md`, `PROJECT_OVERVIEW.md`, `PROJECT_ROADMAP.md`, `FINAL_REVIEW_SUMMARY.md` |
-| **D-041** | أسماء الأطفال تُدخل **بالإنجليزية**. الكود = أول حرفين `A-Z` من اسم الطفل + أول حرفين من اسم ولي الأمر + `nextval(sequence)`. **لا Transliteration**. الحالات الحدّية تبقى P-03. | نفس الملفات + §9 في `DATABASE_DESIGN.md` |
-| **D-042** | لا حذف نهائي ولا anonymization في v1. تُحفظ السجلات التاريخية. P-20 يبقى معلّقًا. | `DECISIONS.md`, `PENDING_REQUIREMENTS.md`, `DATABASE_DESIGN.md`, `FINAL_REVIEW_SUMMARY.md` |
-| **D-043** | التقرير المخفي عن ولي الأمر يبقى مرئيًا للإدارة عبر `reports.view_all`. الأخصائي لا يملك `reports.hide_from_parent` افتراضيًا. الدور الدقيق P-07. | `DECISIONS.md`, `DATABASE_DESIGN.md`, `PROJECT_ROADMAP.md`, `FINAL_REVIEW_SUMMARY.md` |
-| **D-044** | حساب ولي أمر واحد يدير عدة أطفال (مؤكد)، لكن طريقة الدخول ومفتاح Find-or-Create غير محسومين (P-01). **رقم الجوال وحده ليس المفتاح المعتمد**. لا تسجيل/مصادقة لولي الأمر. | نفس الملفات |
+| 1 | `/up` | **غير قابل للاختبار** — يتطلب مشروع Laravel وخادم HTTP. لم يُدَّعَ نجاحه. |
+| 2 | `composer install` لمشروع Laravel | **غير قابل للاختبار** — لا يوجد مشروع Laravel. |
+| 3 | `intl` | غير مثبّت؛ غير مطلوب في Gate B. `db:show` لن يعمل حتى يُضاف. |
+| 4 | أول بناء للصورة | بطيء جدًا بسبب الشبكة (~20 دقيقة)؛ نجح. |
+| 5 | إعادة تشغيل PostgreSQL | استغرقت وقتًا حتى `healthy`؛ نجحت. |
+| 6 | سقالة Laravel سابقة | أُنشئت في محاولة سابقة ثم **أُزيلت بالكامل** التزامًا بالنطاق الجديد. تظهر الآن كـ deletions في Git لأنها كانت ضمن `Init commit`. |
+| 7 | عدد الجداول | 0 — لا migrations ولا جداول. |
 
-**ملاحظات:**
-- لم يُحذف أي سؤال قديم بلا مرجع؛ D-031 وD-034 وD-032 بقيت في السجل كسياق تاريخي مع إشارة إلى القرار الأحدث.
-- لم يُغيَّر أي Schema بسبب هذه التوضيحات.
-- `DATABASE_DESIGN.md` بقي **v4**؛ التغييرات توضيحية فقط.
+### أمر خادم HTTP المطلوب بعد إنشاء Laravel
+```powershell
+docker compose exec app php artisan serve --host=0.0.0.0 --port=8000
+# ثم: http://localhost:8000/up
+```
+هذا الأمر **لم يُنفَّذ** في Gate B لأنه لا يوجد Laravel.
 
 ---
 
-## 3. الملفات المنشأة/المعدلة
+## 14. تأكيد الالتزام بالنطاق
 
-### 3.1 ملفات Docker والبيئة
-
-| الملف | الوصف |
+| القيد | الحالة النهائية |
 |---|---|
-| `Dockerfile` | `php:8.4-cli` + `git` + `unzip` + `libpq-dev` + `pdo_pgsql` + Composer 2 |
-| `compose.yaml` | خدمتا `app` و`db`، volume دائم، healthcheck، تحميل `.env` |
-| `.dockerignore` | استبعاد `.env` و`vendor` و`node_modules` … |
-| `.env.example` | قالب Laravel 13 كامل معدّل لـ PostgreSQL، بكلمة مرور placeholder |
-| `.env` | محلي فقط، **متجاهَل بواسطة Git**، يحتوي كلمة مرور مولّدة و`APP_KEY` |
-| `Makefile` | اختصارات `up/down/build/shell/composer/artisan/test/logs` |
-| `.gitignore` | محدّث: إضافة `/database/*.sqlite` |
+| مشروع Laravel | ❌ غير موجود |
+| `artisan` / `composer.json` لمشروع Laravel | ❌ غير موجود |
+| Migrations | ❌ لا توجد |
+| جداول قاعدة بيانات | ❌ 0 جداول |
+| Models | ❌ لا توجد |
+| Controllers | ❌ لا توجد |
+| Routes / APIs | ❌ لا توجد |
+| Authentication | ❌ لم تُنفَّذ |
+| Roles / Permissions | ❌ لم تُنفَّذ |
+| Seeders / Factories | ❌ لا توجد |
+| Business logic | ❌ لا توجد |
+| Phase 1 | ❌ لم تبدأ |
+| Hardcoded secrets | ❌ لا توجد |
 
-### 3.2 مشروع Laravel 13 (هيكل قياسي)
-
-تم إنشاء المشروع داخل الحاوية إلى `/tmp/laravel` ثم دمجه في جذر المستودع، مع **عدم** استبدال ملفات الوثائق أو Docker أو `.env`:
-
-```
-app/                  (Providers فقط)
-artisan
-bootstrap/
-config/
-database/             (migrations فارغة + seeders)
-public/
-resources/
-routes/               (web.php وconsole.php الافتراضيان)
-storage/
-tests/
-composer.json
-composer.lock
-package.json
-phpunit.xml
-vite.config.js
-.editorconfig
-.gitattributes
-.npmrc
-README.md
-```
-
-### 3.3 ملفات Laravel الافتراضية التي أُزيلت
-
-لالتزام حرفي بقيود Gate B:
-
-| الملف | السبب |
-|---|---|
-| `app/Models/User.php` | ممنوع إنشاء Models |
-| `app/Http/Controllers/Controller.php` | ممنوع إنشاء Controllers |
-| `database/migrations/0001_01_01_*.php` (3 ملفات) | ممنوع إنشاء migrations |
-| `database/factories/UserFactory.php` | بيانات/موديل مستخدم |
-| `database/seeders/DatabaseSeeder.php` | أُعيدت كتابته ليصبح **no-op** بلا أي بيانات |
-
-**النتيجة:** `app/` يحتوي فقط `Providers/AppServiceProvider.php`، و`database/migrations` فارغ، و`database/seeders` يحتوي Seeder فارغًا.
+**الخلاصة:** Gate B يقتصر على البنية التحتية، وكل ما تم التحقق منه ناجح. لا يوجد Laravel ولا قاعدة بيانات مُهيّأة بجداول.
 
 ---
 
-## 4. خدمات Docker والإصدارات
+## 15. الخطوة التالية
 
-| العنصر | الإصدار / القيمة |
-|---|---|
-| Docker Engine | 28.4.0 |
-| Docker Compose | v2.39.4-desktop.1 |
-| صورة التطبيق | `basma-noor-app:dev` (مبنية محليًا) |
-| PHP | **8.4.27** (NTS) |
-| Composer | **2.11.2** |
-| Laravel Framework | **13.42.0** |
-| Laravel Skeleton | `laravel/laravel` **v13.11.0** |
-| PostgreSQL | **17.12** (`postgres:17-alpine`) |
-| الشبكة | `basma-noor_default` |
-| Volume | `basma-noor_pgdata` |
-| المنفذ | `8000 → 8000` |
-| حالة `db` | `healthy` |
-| قاعدة البيانات | `basma_noor` |
-| المستخدم | `basma_noor` |
+**Gate A:** اعتماد `FINAL_REVIEW_SUMMARY.md` + `DATABASE_DESIGN.md` v4.
 
-### compose.yaml (الملخص)
+**بعد الموافقة فقط:** إنشاء مشروع Laravel 13 داخل الحاوية (T-0.2)، ثم التحقق من `/up` واتصال Laravel بقاعدة البيانات.
 
-- `app`: بناء من `Dockerfile`، `env_file: .env`، bind mount للمشروع، يعتمد على `db` بحالة `service_healthy`.
-- `db`: `postgres:17-alpine`، volume `pgdata`، healthcheck عبر `pg_isready` كل 5 ثوانٍ.
-- كلمة المرور تُقرأ من `.env` مع `:?` لإلزام وجودها — **لا كلمة مرور في الملف الملتزم**.
-
----
-
-## 5. أوامر التحقق المستخدمة والنتائج
-
-### 5.1 التحقق من Compose والبناء
-
-```powershell
-docker compose config --quiet          # OK
-docker compose build app               # built basma-noor-app:dev
-docker compose up -d db                # db healthy
-docker compose up -d app               # app up
-docker compose ps                      # app Up, db Up (healthy)
-```
-
-### 5.2 PHP والإضافات وComposer
-
-```powershell
-docker compose run --rm --entrypoint sh app -lc "php -v; php -m | grep -i pdo; composer --version"
-```
-
-**النتيجة:**
-- PHP 8.4.27
-- `PDO`
-- `pdo_pgsql` ✅
-- `pdo_sqlite`
-- Composer 2.11.2
-
-> `intl` غير مثبّت. لم يكن مطلوبًا في Gate B، لكنه مطلوب لأمر `php artisan db:show` فقط (انظر §7).
-
-### 5.3 اتصال PDO المباشر
-
-```powershell
-$code | docker compose exec -T app php
-```
-
-**النتيجة:**
-```
-PDO PostgreSQL OK: PostgreSQL 17.12 on x86_64-pc-linux-musl
-```
-
-### 5.4 اتصال Laravel بقاعدة البيانات
-
-```powershell
-$code | docker compose exec -T app php artisan tinker
-```
-
-**النتيجة:**
-```
-pgsql | PostgreSQL 17.12 on x86_64-pc-linux-musl
-```
-
-### 5.5 Laravel وComposer
-
-```powershell
-docker compose exec -T app php artisan --version
-# Laravel Framework 13.42.0
-
-docker compose exec -T app composer validate --no-check-publish
-# ./composer.json is valid
-
-docker compose exec -T app composer install --no-interaction --no-progress
-# Nothing to install, update or remove — ناجح
-```
-
-### 5.6 المسارات
-
-```powershell
-docker compose exec -T app php artisan route:list
-```
-
-النتيجة: 4 مسارات افتراضية فقط:
-- `GET /`
-- `GET|PUT storage/{path}`
-- `GET up` (HealthCheck)
-
-لا توجد أي مسارات أعمال أو Auth.
-
-### 5.7 التحقق من `/up`
-
-```powershell
-docker compose exec -T app php artisan serve --host=0.0.0.0 --port=8000
-Invoke-WebRequest http://localhost:8000/up
-```
-
-**النتيجة:** `HTTP 200` (تم التحقق مرتين، قبل وبعد إزالة ملفات Laravel الافتراضية).
-
-### 5.8 التحقق من نظافة قاعدة البيانات
-
-```sql
-select count(*) from pg_tables where schemaname = 'public';
-```
-
-**النتيجة:** `0` جدول.
-
----
-
-## 6. الأسرار وGit
-
-- `.env` موجود محليًا فقط، ويحتوي:
-  - كلمة مرور PostgreSQL مولّدة عشوائيًا (32 حرفًا).
-  - `APP_KEY` مولّد بواسطة `php artisan key:generate`.
-- تم التحقق: `git check-ignore -v .env` → `.gitignore:8:/.env`.
-- `.env.example` يحتوي `DB_PASSWORD=change-me-in-local-env` فقط.
-- `composer.lock` ملتزم (مطلوب لتثبيت الإصدارات).
-- **لم يُنشأ أي commit**؛ كل التغييرات ما زالت غير ملتزمة في `git status`.
-
----
-
-## 7. المشاكل التي واجهتها وكيف حُلّت
-
-| # | المشكلة | الحل |
-|---|---|---|
-| 1 | شبكة تنزيل Docker بطيئة جدًا (صورة PHP ~118MB، ثم حزم Debian استغرقت ~16 دقيقة). | تشغيل البناء في الخلفية وانتظار الاكتمال. |
-| 2 | أول أمر نسخ من `/tmp/laravel` انتهت مهلته واستمر يعمل، فأعاد ملفات افتراضية بعد حذفها. | التحقق من عدم وجود عمليات `tar` متبقية، ثم إعادة الحذف والتحقق النهائي. |
-| 3 | **مثبّت Laravel نفّذ migrations الافتراضية على PostgreSQL** لأن متغيرات بيئة الحاوية (`DB_CONNECTION=pgsql`) تغلبت على `.env` المؤقت في `/tmp/laravel`، فظهرت 9 جداول. | `php artisan db:wipe --force` ثم التحقق: **0 جداول**. |
-| 4 | `php artisan db:show` يفشل بسبب غياب إضافية `intl`. | لم يكن الأمر مطلوبًا؛ تم التحقق من الاتصال عبر PDO وTinker. `intl` غير مطلوب لتشغيل Laravel أو `/up`. |
-| 5 | أول طلب إلى `artisan serve` على Windows bind mount بطيء (عدة ثوانٍ). | إعادة المحاولة بعد بدء الخادم؛ `/up` رجع 200. |
-
-**لا يوجد أثر متبقٍ لهذه المشاكل:** قاعدة البيانات نظيفة، والملفات المخالفة محذوفة، والتحقق النهائي ناجح.
-
----
-
-## 8. تأكيد الالتزام بالقيود
-
-| القيد | الحالة |
-|---|---|
-| عدم إنشاء migrations | ✅ `database/migrations` فارغ؛ الحذف شمل migrations الافتراضية |
-| عدم إنشاء/تعديل جداول | ✅ 0 جداول في `public` |
-| عدم إنشاء Eloquent Models | ✅ `app/Models` غير موجود |
-| عدم إنشاء Controllers/endpoints | ✅ `app/Http/Controllers` غير موجود؛ المسارات افتراضية فقط |
-| عدم تنفيذ Auth | ✅ لا تسجيل/دخول/مصادقة |
-| عدم تنفيذ Roles/Permissions | ✅ لا صلاحيات ولا RBAC |
-| عدم تنفيذ Business modules | ✅ لا شيء |
-| عدم Seed بيانات أعمال | ✅ `DatabaseSeeder` فارغ |
-| عدم بدء Phase 1 | ✅ لم يبدأ |
-| عدم تعديل Schema المعتمد | ✅ لا تغيير؛ التوضيحات وثائقية فقط |
-| عدم وضع أسرار في Git | ✅ `.env` متجاهَل |
-
----
-
-## 9. الحالة الحالية للمشروع
-
-**تم:**
-- Gate A aftermath: الوثائق محدّثة ومتسقة.
-- Gate B: البيئة كاملة وتعمل.
-- Laravel 13 جاهز كهيكل فارغ.
-- PostgreSQL يعمل مع volume دائم.
-- الاتصال والأمان الأساسي (secrets) مضبوطان.
-
-**لم يتم (بانتظار الموافقة):**
-- Gate C: أي migration أو جدول أو Seeder أعمال.
-- Gate D: Models/Controllers/Auth/RBAC/endpoints.
-- Phase 1 أو أي منطق أعمال.
-- Pest (لم يُثبّت؛ Laravel 13 جاء مع PHPUnit افتراضيًا).
-- إضافية `intl` (اختيارية، مطلوبة فقط لبعض أوامر العرض مثل `db:show`).
-- commit للتغييرات.
-
----
-
-## 10. الخطوة التالية المقترحة (بانتظار موافقة صريحة)
-
-**Gate C — T-1.1:** إنشاء migration لـ:
-
-- `roles` (مع `level` وCHECK 0..100)
-- `permissions`
-- `role_permissions`
-
-وفق ترتيب `DATABASE_DESIGN.md §11`، ثم التحقق بـ `migrate:fresh` واختبارات الـ schema.
-
-**لن أبدأ أي migration قبل موافقتك الصريحة.**
-
----
-
-## 11. أوامر يومية سريعة
-
-```powershell
-make up            # docker compose up -d --build
-make down          # docker compose down
-make shell         # bash داخل الحاوية
-make artisan ARGS="about"
-make composer ARGS="install"
-make test          # php artisan test
-make logs          # متابعة السجلات
-```
-
-أو مباشرة:
-
-```powershell
-docker compose exec app php artisan <command>
-docker compose exec app composer <command>
-```
+> اعتماد تجهيز البنية التحتية **لا يعني** اعتماد الـ Schema. لن أنشئ Laravel أو أي migration قبل موافقتك الصريحة.
