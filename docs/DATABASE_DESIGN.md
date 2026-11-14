@@ -218,6 +218,10 @@ PK (`role_id`, `permission_id`) · FK cascade · index على `permission_id`.
 
 Indexes: `unique(email)`, `unique(mobile)`, `(role_id, is_active)`, `(created_by_user_id)`.
 
+> **تنبيه (P-01):** `unique(mobile)` قيد تقني لحماية تكرار بيانات الاتصال، **وليس اعتمادًا
+> لمفتاح هوية ولي الأمر**. لا يُستخدم Find-or-Create ولا يُفترض أن الجوال وحده يعرّف ولي الأمر (D-044).
+> أي تعديل على هذا القيد يُعرض للاعتماد قبل Gate C.
+
 **Invariants تطبيقية:**
 - `role_id` لا يُقبل من أي Request عام؛ يُحدَّد بواسطة Service بعد فحص الصلاحية.
 - **لا يُفرض `email` على Staff ولا `mobile` على Parent قبل P-01/P-32.** يلزم identifier واحد
@@ -337,7 +341,7 @@ Unique (`assessment_id`, `question_id`) · Index `(question_id)`.
 `name` varchar(120) unique · `description` text null · `display_order` smallint · `is_active` bool · timestamps.
 
 #### `functional_scale_scores`
-`assessment_id` → CASCADE · `scale_id` → RESTRICT · `scale_name_snapshot` varchar(120) NOT NULL · `score` smallint **CHECK 0..10** · `specialist_comment` text null.
+`assessment_id` → CASCADE · `scale_id` → RESTRICT · `scale_name_snapshot` varchar(120) NOT NULL · `score` smallint **CHECK 0..10** · `specialist_comment` text null — **اختياري/غير إلزامي (D-045)**، لا CHECK ولا validation يفرضه.
 Unique (`assessment_id`, `scale_id`) · Index `(scale_id)`.
 
 #### `reinforcer_catalog`
@@ -679,8 +683,9 @@ effective(user):
 child_code = first2(A-Z from child_name) . first2(A-Z from parent_name) . nextval(child_code_sequence)
 ```
 
-- أسماء الأطفال وولي الأمر تُدخل **بالإنجليزية**.
+- أسماء الأطفال **وولي الأمر** تُدخل **بالإنجليزية**.
 - **لا Transliteration** من العربية، ولا خريطة تحويل.
+- الرقم التسلسلي **Global ومستقل عن الحروف** (D-003)؛ لا يُشتق من الأسماء ولا يتأثر بها.
 - `child_code varchar(20)` unique · `sequence_number bigint` unique.
 - `CREATE SEQUENCE child_code_sequence START 1` — **لا MAX+1**.
 - الفجوات مقبولة. الكود لا يُعاد استخدامه حتى بعد soft delete.
@@ -792,8 +797,8 @@ POST /children  (transaction)
 | 17 | `notifications` | 2 |
 | 18 | `audit_logs` + Trigger `audit_logs_immutable` | 2 |
 
-> **بوابة:** لا يُنفَّذ أي migration قبل اعتماد الوثيقة (Gate A) وتجهيز البيئة (Gate B).
-> هذا الترتيب ملزم حتى لو بدت بعض الجداول مستقلة.
+> **بوابة:** لا يُنفَّذ أي migration قبل اعتماد الوثيقة (Gate A)، ثم تجهيز البيئة (Gate B)،
+> ثم إنشاء Laravel، ثم اعتماد الـ Schema (Gate C). هذا الترتيب ملزم حتى لو بدت بعض الجداول مستقلة.
 
 ---
 
