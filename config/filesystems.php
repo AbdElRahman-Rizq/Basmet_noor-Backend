@@ -38,6 +38,23 @@ return [
             'report' => false,
         ],
 
+        /*
+         * Private reports (Phase 0 / T-0.10).
+         *
+         * - `local` driver with a private visibility: files live outside public/.
+         * - `serve => false`: no signed storage route is registered for this disk.
+         * - no `url`: Storage::url() is unsupported, so no public link can be built.
+         * - The directory is created on first write; it is not exposed via storage:link.
+         */
+        'private_reports' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/reports'),
+            'serve' => false,
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

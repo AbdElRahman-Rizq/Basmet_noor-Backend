@@ -5,7 +5,7 @@
 >
 > **حالة الرموز:** `[ ]` لم تبدأ · `[~]` قيد التنفيذ · `[x]` مكتملة · `[!]` محظورة (PENDING)
 
-**آخر تحديث:** 2026-11-14 — اكتمال T-0.2 → T-0.7 (Laravel 13 · Pest · API Standards · Scramble). لا migrations قبل Gate C.
+**آخر تحديث:** 2026-11-16 — اكتمال T-0.2 → T-0.10 (Laravel 13 · Pest · API Standards · Scramble · Makefile · Private Storage). لا migrations قبل Gate C.
 
 ---
 
@@ -65,8 +65,8 @@
 | `[x]` T-0.6 | Response envelope + Exception Handler | 401/403/404/422/429 بصيغة موحّدة. ✅ `ApiResponse` + `ApiExceptionRenderer` |
 | `[x]` T-0.7 | Scramble + `/docs/api` | OpenAPI بدون أخطاء. ✅ Scramble 0.13.53 · 20 اختبارًا · Redocly valid |
 | `[x]` T-0.8 | Git init + `.gitignore` + أول commit | `vendor`/`.env` مستثناة. |
-| `[~]` T-0.9 | سكربتات `make up/down/shell/composer/artisan/test/logs` | تعمل من داخل الـ container؛ `fresh` يتطلب Laravel. |
-| `[!]` T-0.10 | إعداد private disk للتقارير | `storage/app/private/reports` + اختبار كتابة/قراءة — بعد Laravel. |
+| `[x]` T-0.9 | سكربتات `make up/down/shell/composer/artisan/test/logs` | تعمل من داخل الـ container. ✅ `make fresh` محمي برسالة تمنع التنفيذ حتى Gate C |
+| `[x]` T-0.10 | إعداد private disk للتقارير | ✅ `private_reports` → `storage/app/private/reports` · 6 اختبارات · بلا URL عام |
 
 **Gate B:** نجاح T-0.1 + T-0.1b. **ما بعد Gate A:** T-0.2 → T-0.10 (Laravel ثم بقية الإعداد)، وبعدها Gate C.
 

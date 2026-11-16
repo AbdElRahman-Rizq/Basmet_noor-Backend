@@ -1,4 +1,4 @@
-.PHONY: up down build shell composer artisan test logs
+.PHONY: up down build shell composer artisan test logs fresh
 
 up:
 	docker compose up -d --build
@@ -23,3 +23,10 @@ test:
 
 logs:
 	docker compose logs -f
+
+# Database rebuilds stay disabled until Gate C (schema/migrations) is approved.
+fresh:
+	@echo ERROR: 'make fresh' is disabled.
+	@echo Gate C has not been approved, so database migrations are not allowed in Phase 0.
+	@echo This target will be enabled after the Schema v4 migration plan is approved.
+	@exit 1
