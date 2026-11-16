@@ -5,7 +5,7 @@
 >
 > **حالة الرموز:** `[ ]` لم تبدأ · `[~]` قيد التنفيذ · `[x]` مكتملة · `[!]` محظورة (PENDING)
 
-**آخر تحديث:** 2026-11-13 — توضيحات Gate B + D-045. **Gate B = بنية تحتية فقط بلا Laravel.** لا تنفيذ قبل اعتماد v4.
+**آخر تحديث:** 2026-11-14 — اكتمال T-0.2 → T-0.7 (Laravel 13 · Pest · API Standards · Scramble). لا migrations قبل Gate C.
 
 ---
 
@@ -61,9 +61,9 @@
 | `[x]` T-0.2 | إنشاء مشروع Laravel 13 داخل container — **بعد Gate A** | `/up` يرجّع 200. ✅ Laravel 13.42.0 |
 | `[x]` T-0.3 | ضبط `.env` والتحقق من اتصال PostgreSQL عبر Laravel | `SELECT 1` ناجح — **بلا migrations**. ✅ 0 جداول |
 | `[x]` T-0.4 | `routes/api.php` + health endpoint | JSON موحّد — **بلا Sanctum migrations**. ✅ `/api/v1/health` = 200 |
-| `[!]` T-0.5 | Pest + قاعدة `basma_noor_test` | اختبار Unit ناجح — **بلا migrations**. |
-| `[!]` T-0.6 | Response envelope + Exception Handler | 401/403/404/422/429 بصيغة موحّدة. |
-| `[!]` T-0.7 | Scramble + `/docs/api` | OpenAPI بدون أخطاء. |
+| `[x]` T-0.5 | Pest + قاعدة `basma_noor_test` | اختبار Unit ناجح — **بلا migrations**. ✅ Pest 4.7.8 · 13 اختبارًا |
+| `[x]` T-0.6 | Response envelope + Exception Handler | 401/403/404/422/429 بصيغة موحّدة. ✅ `ApiResponse` + `ApiExceptionRenderer` |
+| `[x]` T-0.7 | Scramble + `/docs/api` | OpenAPI بدون أخطاء. ✅ Scramble 0.13.53 · 20 اختبارًا · Redocly valid |
 | `[x]` T-0.8 | Git init + `.gitignore` + أول commit | `vendor`/`.env` مستثناة. |
 | `[~]` T-0.9 | سكربتات `make up/down/shell/composer/artisan/test/logs` | تعمل من داخل الـ container؛ `fresh` يتطلب Laravel. |
 | `[!]` T-0.10 | إعداد private disk للتقارير | `storage/app/private/reports` + اختبار كتابة/قراءة — بعد Laravel. |

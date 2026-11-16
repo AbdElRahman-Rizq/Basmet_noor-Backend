@@ -21,4 +21,5 @@ Thumbs.db
 .php-cs-fixer.cache
 .php-cs-fixer.dist.php
 /auth.json
+/api.json
 docker/data

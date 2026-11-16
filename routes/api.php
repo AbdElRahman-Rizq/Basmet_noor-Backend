@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\ApiResponse;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,9 +14,9 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/health', function () {
-    return response()->json([
+    return ApiResponse::success([
         'status' => 'ok',
         'application' => 'basma-noor',
         'version' => '1.0.0',
-    ]);
+    ], 'Service is healthy');
 });
