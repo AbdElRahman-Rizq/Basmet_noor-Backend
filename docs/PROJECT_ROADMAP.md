@@ -5,7 +5,8 @@
 >
 > **حالة الرموز:** `[ ]` لم تبدأ · `[~]` قيد التنفيذ · `[x]` مكتملة · `[!]` محظورة (PENDING)
 
-**آخر تحديث:** 2026-11-16 — اكتمال T-0.2 → T-0.10 (Laravel 13 · Pest · API Standards · Scramble · Makefile · Private Storage). لا migrations قبل Gate C.
+**آخر تحديث:** 2026-11-17 — ✅ **اكتمال Gate C**: اعتماد **D-050** (P-12) · **D-051** (P-20) · **D-052** (P-31) · **D-053** (P-15)، وتنفيذ 18 migration + seeders + models + factories + اختبارات §15.
+**سابقًا:** D-046 (`age` فقط) · D-047 (درجات integer) · D-048/D-049 (P-21/P-22 خارج V1) · T-0.2 → T-0.10 (Laravel 13 · Pest · API Standards · Scramble · Makefile · Private Storage).
 
 ---
 
@@ -18,11 +19,12 @@
 | **C — اعتماد الـ Schema** | نجاح اختبارات §15 + تأكيد أن لا migration يعتمد على PENDING | كتابة الـ migrations + Models + اختبارات §15. |
 | **D — Backend** | نجاح Gate C | كود التطبيق (Actions/Controllers/Policies/endpoints) حسب Phase 2+. |
 
-> **حالة الآن:** الوثائق متسقة وجاهزة لاعتماد Gate A · **Gate B: مكتمل — بنية تحتية فقط** · Gate C/D: لم تبدأ.
+> **حالة الآن:** ✅ **Gate A مكتمل** · ✅ **Gate B مكتمل** · ✅ **Gate C مكتمل** (2026-11-17) · **Gate D: التالي — لم يبدأ**.
+> **Gate C:** القرارات D-046 → D-053 موثّقة في `docs/DECISIONS.md`. البنود P-12/P-20/P-31/P-15 **مغلقة**.
+> تبقّى معلّقًا في الوثائق: P-04 (Parent Name) · P-09 (Scale Names) · P-01/P-32/P-29 · P-16 · P-03 · P-07.
+> هذه بنود **تطبيقية/تشغيلية** لا تغيّر Schema v4 ولا تمنع بدء Gate D في المسارات المستقلة.
 >
-> **قاعدة صارمة:** لا يُنشأ مشروع Laravel ولا migration ولا كود تطبيقي قبل Gate A.
-> **Gate B لا ينشئ Laravel**؛ يقتصر على التحقق من البنية التحتية.
-> ولا يبدأ أي Backend قبل Gate C. أي مهمة تعتمد على بند `PENDING` تُعلَّم `[!]` أو تُقسَّم.
+> **قاعدة صارمة:** أي كود تطبيقي يبدأ بعد Gate C فقط، وتُعلَّم أي مهمة تعتمد على بند `PENDING` بـ `[!]` أو تُقسَّم.
 
 ---
 
@@ -32,8 +34,8 @@
 - إن تجاوزت 20 دقيقة أو جمعت أكثر من طبقة (migration + model + endpoint + test) → تُقسَّم.
 - التقسيمات الملزمة في هذا الإصدار:
   - T-1.23 → T-1.23a…T-1.23e (مجموعات Models).
-  - T-3.6 → T-3.6a (طفل لحساب قائم) + T-3.6b (إنشاء/إعادة استخدام ولي أمر — محظور P-01/P-32/P-04/P-29).
-  - T-6.1 → T-6.1a (تحقق/تخزين PDF) + T-6.1b (ربط الأهداف — محظور P-31).
+  - T-3.6 → T-3.6a (طفل لحساب قائم) + T-3.6b (إنشاء/إعادة استخدام ولي أمر — محظور P-01/P-32/P-04 (Parent Name)/P-29).
+  - T-6.1 → T-6.1a (تحقق/تخزين PDF) + T-6.1b (ربط الأهداف — ✅ D-052: transaction واحدة).
   - T-8.2 → اختبارات IDOR لكل module على حدة.
 
 ---
@@ -79,36 +81,39 @@
 
 | ID | المهمة | معيار القبول |
 |---|---|---|
-| `[ ]` T-1.1 | `roles` (بها `level`) + `permissions` + `role_permissions` | `roles.level` CHECK 0..100. |
-| `[ ]` T-1.2 | `users` مع `role_id` NOT NULL + `user_permissions` | لا `user_roles`؛ unique على (user, permission). |
-| `[ ]` T-1.3 | `parents` + `specialists` | one-to-one مع users. |
-| `[ ]` T-1.4 | `branches` + `knowledge_sources` | partial unique على اسم الفرع. |
-| `[ ]` T-1.5 | `children` + `CREATE SEQUENCE child_code_sequence` | unique على code/sequence. |
-| `[ ]` T-1.6 | `cases` (nullable specialist + `assigned_at`/`assigned_by` + CHECK) | لا حالة بدون بيانات إسناد متسقة. |
-| `[ ]` T-1.7 | `initial_assessments` + `assessment_questions` + `assessment_answers` (snapshots) | unique(child_id). |
-| `[ ]` T-1.8 | `functional_scales` + `functional_scale_scores` (snapshot + CHECK 0..10) | إدخال 11 يفشل. |
-| `[ ]` T-1.9 | `reinforcer_catalog` + `assessment_reinforcers` | CHECK على 4 فئات. |
-| `[ ]` T-1.10 | `consent_types` + `child_consents` | unique(child, type) + `accepted_by`/`recorded_by` + نسخة/نص nullable. |
-| `[ ]` T-1.11 | `treatment_plans` + `plan_specialists` + `goals` | CHECK progress 0..100 + end_date. |
-| `[ ]` T-1.12 | `reports` (PDF metadata + CHECK mime/size) | لا `details`/`session_notes`. |
-| `[ ]` T-1.13 | `goal_progress_history` (previous/new + report_id RESTRICT + partial unique) + Trigger ثبات | بعد `reports`. |
-| `[ ]` T-1.14 | `homework` + `homework_comments` | append-only. |
-| `[ ]` T-1.15 | `appointments` (+ `specialist_id` nullable مؤقت) | موثق كـ P-15. |
-| `[ ]` T-1.16 | `notifications` | index (recipient, is_read). |
-| `[ ]` T-1.17 | `audit_logs` + trigger منع UPDATE/DELETE | اختبار DB يرمي exception. |
-| `[ ]` T-1.18 | Seeder: roles + permissions + role_permissions | RECEPTION بلا صلاحيات. |
-| `[ ]` T-1.19 | Seeder: branches (2) + knowledge_sources + consent_types (3) | idempotent. |
-| `[ ]` T-1.20 | Seeder: functional_scales (10 placeholders) | موثقة كـ placeholders (P-09). |
-| `[ ]` T-1.21 | Seeder: REINFORCER catalog مبدئي | الفئات الأربع. |
-| `[ ]` T-1.22 | Seeder: SUPER_ADMIN (من env) | لا كلمة مرور في الكود. |
-| `[ ]` T-1.23a | Models: Identity (Role/Permission/User/Parent/Specialist) | علاقات + casts؛ لا `child_name`. |
-| `[ ]` T-1.23b | Models: Children/Cases | علاقات + scopes. |
-| `[ ]` T-1.23c | Models: Assessments/Consents | snapshots + casts. |
-| `[ ]` T-1.23d | Models: Treatment/Reports/Progress | علاقات + append-only guards. |
-| `[ ]` T-1.23e | Models: Homework/Appointments/Notifications/Audit | علاقات + casts. |
-| `[ ]` T-1.24 | Factories للاختبارات | طفل/حالة/تقييم/خطة جاهزة. |
+| `[x]` T-1.1 | `roles` (بها `level`) + `permissions` + `role_permissions` | `roles.level` CHECK 0..100. |
+| `[x]` T-1.2 | `users` مع `role_id` NOT NULL + `user_permissions` | لا `user_roles`؛ unique على (user, permission). |
+| `[x]` T-1.3 | `parents` + `specialists` | one-to-one مع users. |
+| `[x]` T-1.4 | `branches` + `knowledge_sources` | partial unique على اسم الفرع. |
+| `[x]` T-1.5 | `children` + `CREATE SEQUENCE child_code_sequence` | unique على code/sequence · **`age` + `age_recorded_at` فقط، لا `date_of_birth` (D-046)**. |
+| `[x]` T-1.6 | `cases` (nullable specialist + `assigned_at`/`assigned_by` + CHECK) | لا حالة بدون بيانات إسناد متسقة. |
+| `[x]` T-1.7 | `initial_assessments` + `assessment_questions` + `assessment_answers` (snapshots) | unique(child_id). |
+| `[x]` T-1.8 | `functional_scales` + `functional_scale_scores` (snapshot + CHECK 0..10) | إدخال 11 يفشل · **integer فقط، لا decimal/float (D-047)**. |
+| `[x]` T-1.9 | `reinforcer_catalog` + `assessment_reinforcers` | CHECK على 4 فئات. |
+| `[x]` T-1.10 | `consent_types` + `child_consents` | unique(child, type) + `accepted_by`/`recorded_by` + **نسخة/نص NOT NULL (D-050)**. |
+| `[x]` T-1.11 | `treatment_plans` + `plan_specialists` + `goals` | CHECK progress 0..100 + end_date. |
+| `[x]` T-1.12 | `reports` (PDF metadata + CHECK mime/size) | لا `details` ولا `session_notes` (**D-049 خارج V1**). |
+| `[x]` T-1.13 | `goal_progress_history` (previous/new + report_id RESTRICT + partial unique) + Trigger ثبات | بعد `reports`. |
+| `[x]` T-1.14 | `homework` + `homework_comments` | append-only. |
+| `[x]` T-1.15 | `appointments` (+ `specialist_id` nullable) | **D-053**: الإسناد اختياري عند الحجز وإلزامي قبل التأكيد/الإكمال تطبيقيًا. |
+| `[x]` T-1.16 | `notifications` | index (recipient, is_read). |
+| `[x]` T-1.17 | `audit_logs` + trigger منع UPDATE/DELETE | اختبار DB يرمي exception. |
+| `[x]` T-1.18 | Seeder: roles + permissions + role_permissions | RECEPTION بلا صلاحيات. |
+| `[x]` T-1.19 | Seeder: branches (2) + knowledge_sources + consent_types (3) | idempotent. |
+| `[x]` T-1.20 | Seeder: functional_scales (10 placeholders) | موثقة كـ placeholders (P-09). |
+| `[x]` T-1.21 | Seeder: REINFORCER catalog مبدئي | الفئات الأربع. |
+| `[x]` T-1.22 | Seeder: SUPER_ADMIN (من env) | لا كلمة مرور في الكود. |
+| `[x]` T-1.23a | Models: Identity (Role/Permission/User/Parent/Specialist) | علاقات + casts؛ لا `child_name`. |
+| `[x]` T-1.23b | Models: Children/Cases | علاقات + scopes. |
+| `[x]` T-1.23c | Models: Assessments/Consents | snapshots + casts. |
+| `[x]` T-1.23d | Models: Treatment/Reports/Progress | علاقات + append-only guards. |
+| `[x]` T-1.23e | Models: Homework/Appointments/Notifications/Audit | علاقات + casts. |
+| `[x]` T-1.24 | Factories للاختبارات | طفل/حالة/تقييم/خطة جاهزة. |
 
-**Gate C:** `migrate:fresh --seed` من الصفر + كل اختبارات الـ schema (§15 في التصميم).
+**Gate C:** ✅ **منفذ** — 18 migration + 10 seeders + 28 model + 14 factory.
+`basma_noor` و`basma_noor_test` يحملان نفس الـ schema (30 جدولًا + `migrations`).
+89 اختبار Pest ناجح (483 assertion) · Pint ناجح على ملفات Gate C · `migrate:fresh --seed` ناجح على قاعدة الاختبار.
+التفاصيل في `GATE_C_IMPLEMENTATION_REPORT.md`.
 
 ---
 
@@ -143,9 +148,9 @@
 | `[ ]` T-3.3 | `EnglishNameNormalizer` (Uppercase + أول حرفين `A-Z`) | Unit: Muhammad→MU، Ali→AL، Sarah→SA | — |
 | `[!]` T-3.4 | اختبارات الحالات الحدّية (§9.3) | اسم أقل من حرفين، رموز، fallback | **P-03** |
 | `[ ]` T-3.5 | `ChildCodeGenerator` (SEQUENCE) للاختبارات المؤكدة | يعمل داخل transaction؛ لا fallback | — |
-| `[ ]` T-3.6a | تسجيل طفل لحساب ولي أمر **قائم** + الإقرارات الثلاثة | أي إقرار ناقص → rollback كامل | — |
-| `[!]` T-3.6b | إنشاء/إعادة استخدام ولي أمر جديد (Find-or-Create) | لا تكرار + 422 عند التعارض | **P-01/P-32/P-04/P-29** |
-| `[ ]` T-3.7 | اختبارات الإقرارات (§10.2) | 10 حالات | — |
+| `[ ]` T-3.6a | تسجيل طفل لحساب ولي أمر **قائم** + الإقرارات الثلاثة | أي إقرار ناقص → rollback كامل · ✅ **P-12 محسوم (D-050)** — التنفيذ في Gate D | — |
+| `[!]` T-3.6b | إنشاء/إعادة استخدام ولي أمر جديد (Find-or-Create) | لا تكرار + 422 عند التعارض | **P-01/P-32/P-04 (Parent Name)/P-29** |
+| `[ ]` T-3.7 | اختبارات الإقرارات (§10.2) | 10 حالات · ✅ **P-12 محسوم (D-050)** — الاختبارات التطبيقية في Gate D | — |
 | `[ ]` T-3.8 | اختبار "لا أثر للاسم" | DB + audit + logs + validation errors | — |
 | `[ ]` T-3.9 | اختبار تزامن 50 طلبًا | 50 كودًا مختلفًا | — |
 | `[ ]` T-3.10 | عرض الأطفال (Admin vs Parent scope) | ولي أمر لا يرى غير أطفاله → 404 | — |
@@ -154,6 +159,10 @@
 | `[!]` T-3.13 | `AssignSpecialistAction` + audit | يتحقق من دور SPECIALIST ونشاطه | **P-13** (مَن يملك الإسناد) |
 | `[ ]` T-3.14 | `requireAssigned()` + 5 اختبارات للبوابة | خطة/هدف/تقدم/تقرير/واجب | — |
 | `[ ]` T-3.15 | سياسات Child/Case + IDOR | 404/403 متوقعة | — |
+
+> **ملاحظة P-12:** ✅ **محسوم (D-050 — A1+B2+C0).** البنية جاهزة في Gate C:
+> `consent_version` و`consent_text_snapshot` إلزاميان، والقبول ورقي يُسجّله موظف مخوّل.
+> يبقى على Gate D تمرير النص المعتمد من المركز ورفض الطلب إن غاب؛ لا سحب/تصحيح في V1.
 
 ---
 
@@ -196,11 +205,11 @@
 | ID | المهمة | معيار القبول | Blocked by |
 |---|---|---|---|
 | `[ ]` T-6.1a | رفع/تخزين PDF + metadata + session_date | transaction واحدة؛ لا اسم في المسار | — |
-| `[!]` T-6.1b | ربط الأهداف + تسجيل التقدم داخل نفس الـ transaction | previous/new + history | **P-31** |
+| `[ ]` T-6.1b | ربط الأهداف + تسجيل التقدم داخل نفس الـ transaction | previous/new + history · ✅ **P-31 محسوم (D-052)** | — |
 | `[ ]` T-6.2 | التحقق من PDF (mime + magic bytes + size) | ملف مزيف → 422، ولا يُحفظ | — |
 | `[ ]` T-6.3 | تخزين private + اسم عشوائي + checksum | لا اسم طفل في المسار | — |
 | `[ ]` T-6.4 | رفض هدف لا يتبع Case التقرير | 422 لكل حالة | — |
-| `[!]` T-6.5 | رفض تقرير بلا أهداف / بهدف مكرر | 422 — القاعدة مؤقتة | **P-31** |
+| `[ ]` T-6.5 | رفض تقرير بلا أهداف / بهدف مكرر | 422 · هدف واحد على الأقل + نسبة لكل هدف · ✅ **P-31 محسوم (D-052)** | — |
 | `[ ]` T-6.6 | عرض التقارير (Admin vs Specialist scope) | 404 خارج النطاق | — |
 | `[!]` T-6.7 | إخفاء تقرير عن ولي الأمر | التقرير المخفي يبقى مرئيًا للإدارة؛ الدور المالك غير محسوم + audit | **P-07** |
 | `[ ]` T-6.8 | تنزيل PDF عبر Policy | تقرير مخفي → 404 لولي الأمر، ووصول للإدارة | — |
@@ -210,18 +219,25 @@
 | `[ ]` T-6.12 | تعليقات الواجب (append-only) | ولي أمر لا يعلّق على واجب غيره | — |
 | `[ ]` T-6.13 | اختبارات IDOR للتقرير/ملفه/الواجب | 12 حالة | — |
 
+> **ملاحظة P-31:** ✅ **محسوم (D-052 — Option B).** رفع PDF + ربط هدف واحد على الأقل + نسبة تقدم
+> لكل هدف + `goal_progress_history` + تحديث `goals.progress_percentage` في **transaction واحدة**.
+> لا `report_goals` pivot ولا `reports.status`.
+
 ---
 
 ## Phase 7 — المواعيد والإشعارات
 
 | ID | المهمة | معيار القبول | Blocked by |
 |---|---|---|---|
-| `[!]` T-7.1 | موعد مرتبط بأخصائي | **محظور** | **P-15** |
+| `[ ]` T-7.1 | موعد مرتبط بأخصائي | `specialist_id` nullable · الإسناد إلزامي قبل التأكيد/الإكمال · ✅ **P-15 محسوم (D-053)** | — |
 | `[ ]` T-7.2 | إنشاء موعد (child + branch + date) | بدون حالات غير معتمدة | — |
 | `[ ]` T-7.3 | عرض/تعديل الموعد | حسب P-15 فقط | — |
 | `[!]` T-7.4 | إشعار in-app عند الحجز | المستقبلون/الحدث غير محسومين | **P-16** |
 | `[ ]` T-7.5 | قائمة الإشعارات + تعليم مقروء | مقصورة على المستخدم | — |
-| `[!]` T-7.6 | Audit للمواعيد (إلغاء/إعادة جدولة) | حالات الموعد غير محسومة | **P-15** |
+| `[!]` T-7.6 | Audit للمواعيد (إلغاء/إعادة جدولة) | **خارج V1 (D-053)** — لا إلغاء/إعادة جدولة ولا حالات معتمدة | — |
+
+> **ملاحظة P-15:** ✅ **محسوم (D-053 — Option B+).** `specialist_id` nullable، والإسناد اختياري
+> عند الحجز وإلزامي قبل التأكيد/الإكمال **تطبيقيًا**. لا Enums ولا إلغاء/إعادة جدولة في V1.
 
 ---
 
@@ -251,20 +267,30 @@
 | T-2.3 Parent login | **P-01** |
 | T-2.6b إنشاء RECEPTION | **P-02** |
 | تفعيل أي صلاحية RECEPTION | **P-02** |
-| T-3.4/T-3.6b حالات الأكواد وfallback | **P-03** + **P-01/P-32/P-04/P-29** |
+| T-3.4/T-3.6b حالات الأكواد وfallback | **P-03** + **P-01/P-32/P-04 (Parent Name)/P-29** |
 | T-3.11 تعديل بيانات الطفل | **P-19** |
 | T-3.13 AssignSpecialistAction/صلاحية الإسناد | **P-13** |
-| T-6.1b/T-6.5 ربط الأهداف وعددها | **P-31** |
 | T-6.7 مَن يخفي التقرير | **P-07** |
 | تعديل التقييم بعد الحفظ | P-08 |
 | Case status workflow | P-05 |
 | استبدال/حذف ملف التقرير | **P-07** (P-28 مدمج) |
-| المواعيد المرتبطة بأخصائي / حالاتها | **P-15** |
 | Notification channels / إنشاء تلقائي | **P-16** |
-| Final assessment | P-21 |
-| حق المحو النهائي | P-20 |
-| سحب/تصحيح الإقرارات | **P-12** |
-| نص الإقرارات القانوني | **P-12** |
+
+> **مغلقة بقرارات Gate C:** P-12 (**D-050**) · P-20 (**D-051**) · P-31 (**D-052**) · P-15 (**D-053**).
+> ما تبقّى منها هو **تنفيذ تطبيقي في Gate D** (نص الإقرار المعتمد، تحقق «≥ هدف»، إلزام الأخصائي
+> قبل التأكيد)، وليس حظرًا على الـ Schema. لا سحب/تصحيح إقرار، ولا حذف/إمحاء، ولا إلغاء/إعادة
+> جدولة مواعيد في V1.
+
+---
+
+## خارج نطاق V1 نهائيًا (🚫)
+
+| البند | القرار | الأثر على المهام |
+|---|---|---|
+| **P-21 — «التقييم النهائي»** | **D-048** | لا Schema ولا Business Logic ولا Endpoint. لا تُضاف مهمة له في V1. |
+| **P-22 — ملاحظات الجلسة الأولى / `session_notes` / `sessions`** | **D-049** | التقرير PDF هو سجل الجلسة الوحيد. لا تُضاف مهمة له في V1. |
+
+> أي تنفيذ مستقبلي لأي منهما يتطلب ADR جديدًا + migration جديدة، ولا يُشتق ضمنيًا من `initial_assessments` أو `reports`.
 
 ---
 

@@ -33,5 +33,9 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="SUPER_ADMIN_NAME" value="Test Super Admin"/>
+        <env name="SUPER_ADMIN_EMAIL" value="super-admin@example.test"/>
+        <env name="SUPER_ADMIN_MOBILE" value="+966500000000"/>
+        <env name="SUPER_ADMIN_PASSWORD" value="testing-only-password"/>
     </php>
 </phpunit>

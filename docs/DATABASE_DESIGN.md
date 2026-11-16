@@ -2,6 +2,11 @@
 
 > **الحالة:** ⏳ بانتظار اعتماد العميل. **لا migrations ولا كود قبل الاعتماد.**
 > **الإصدار:** v4 · **التاريخ:** 2026-11-13 (توضيحات Gate B؛ لا تغيير في الـ Schema)
+> **تحديث توثيقي:** 2026-11-17 — تثبيت **D-046** (`age` فقط) و**D-047** (درجات integer)
+> و**D-048/D-049** (P-21/P-22 خارج V1). **لا تغيير هيكلي في الـ Schema.**
+> **اعتماد Gate C:** **D-050** (P-12: A1+B2+C0) · **D-051** (P-20: Retention Only) ·
+> **D-052** (P-31: هدف واحد على الأقل) · **D-053** (P-15: B+). التغيير الهيكلي الوحيد:
+> `child_consents.consent_version` و`consent_text_snapshot` أصبحا **NOT NULL**.
 > **الأساس:** `ERD.txt` + متطلبات §4 + قرارات العميل + مراجعة العميل على v2/v3.
 
 > **قاعدة الاعتماد:** لا يُنشأ مشروع Laravel ولا migration ولا كود تطبيقي قبل اعتماد هذه الوثيقة.
@@ -18,6 +23,11 @@
 | v2 | تصحيحات C-01…C-07 + إضافات أمنية. |
 | v3 | دور أساسي واحد عبر `users.role_id` · `cases.specialist_id` nullable مع بوابة إسناد · Reports = ملف PDF مرفوع + ربط الأهداف · تاريخ تقدم بـ previous/new + `report_id` · آلية صلاحيات صريحة ومقاومة للتصعيد · فرض الإقرارات الثلاثة عند التسجيل · توثيق حالات تحويل الأسماء الخاصة. |
 | **v4** | **تثبيت المصادقة كقرار معلّق (P-01/P-32)** · **قاعدة عدم تكرار حساب ولي الأمر** · **تأكيد `plan_specialists` كجدول مشاركي الخطة (D-040)** · **فصل `accepted_by` عن `recorded_by` في الإقرارات (P-12)** · **تصحيح تعارض `SET NULL` مع قيود/Triggers الحماية** · **Trigger لثبات تاريخ التقدم** · **توحيد مصفوفة الحذف** · **تعديل مثال كود الطفل الخاطئ** · **بوابات اعتماد صريحة**. |
+
+> **تحديث توثيقي (2026-11-17، لا يغيّر رقم الإصدار):** قرارات Gate C الجديدة
+> **D-046** (`children.age` فقط، لا `date_of_birth`) · **D-047** (`functional_scale_scores.score` integer فقط)
+> · **D-048** (P-21 «التقييم النهائي» خارج V1) · **D-049** (P-22 «ملاحظات الجلسة الأولى» خارج V1).
+> هذه القرارات **توثّق الوضع الحالي للـ Schema** ولا تضيف/تحذف أي عمود أو جدول.
 
 ### ملخص التغييرات v3 → v4
 
@@ -290,6 +300,10 @@ Partial unique: `(name) WHERE deleted_at IS NULL`.
 
 Indexes: `(parent_id)`, `(knowledge_source_id)`.
 
+> **العمر (D-046):** `age` + `age_recorded_at` هما المصدر المعتمد الوحيد لعمر الطفل.
+> **لا يُضاف `date_of_birth`** ولا أي عمود مشتق/مرتبط به في V1. `age_recorded_at` يثبّت وقت تسجيل العمر.
+> اسم ولي الأمر يبقى ضمن **P-04 (Parent Name)** ولم يُحسم بهذا القرار.
+
 > **قاعدة ولي الأمر:** التسجيل يقبل `parent_id` لحساب قائم أو ينشئ/يعيد استخدام حساب واحد
 > حسب identifier مؤكد. ممنوع إنشاء حساب ولي أمر مكرر لنفس الشخص. مفتاح المطابقة
 > (email/mobile/غير ذلك) معلّق P-01/P-32؛ **رقم الجوال وحده ليس المفتاح المعتمد** (D-044)،
@@ -349,6 +363,9 @@ Unique (`assessment_id`, `question_id`) · Index `(question_id)`.
 `assessment_id` → CASCADE · `scale_id` → RESTRICT · `scale_name_snapshot` varchar(120) NOT NULL · `score` smallint **CHECK 0..10** · `specialist_comment` text null — **اختياري/غير إلزامي (D-045)**، لا CHECK ولا validation يفرضه.
 Unique (`assessment_id`, `scale_id`) · Index `(scale_id)`.
 
+> **نوع الدرجة (D-047):** `score` **integer فقط** (`smallint`) بمدى 0..10؛ **لا `decimal` ولا `float`** ولا كسور في V1.
+> أسماء المقاييس العشرة وتوصيفها تبقى ضمن **P-09 (Scale Names)**.
+
 #### `reinforcer_catalog`
 `category` varchar(20) **CHECK IN (`material`,`social`,`activity`,`food`)** · `name` varchar(120) · `is_active` bool · `display_order` smallint · timestamps.
 Unique (`category`, `name`).
@@ -360,7 +377,7 @@ Unique (`assessment_id`, `reinforcer_id`).
 #### `consent_types`
 `name` varchar(120) unique · `description` text · `is_required` bool · `display_order` smallint · `is_active` bool · timestamps.
 Seed فقط (3 أنواع) — **لا CRUD إداري في v1**، ولا نص قانوني مُختلق داخل الكود/الـ Seeder.
-النص الفعلي والنسخة **معلّقان P-12**.
+**محسوم (D-050):** القبول ورقي ويُسجَّل يدويًا بواسطة موظفي المركز؛ النص الفعلي يُعتمد من المركز/القانوني.
 
 #### `child_consents`
 | Column | Type | Constraints |
@@ -368,18 +385,23 @@ Seed فقط (3 أنواع) — **لا CRUD إداري في v1**، ولا نص ق
 | child_id | uuid | NOT NULL → children.id RESTRICT |
 | consent_type_id | uuid | NOT NULL → consent_types.id RESTRICT |
 | accepted_at | timestamptz | NOT NULL |
-| accepted_by_user_id | uuid | **NULL** → users.id RESTRICT (حساب ولي الأمر عند القبول الرقمي) |
+| accepted_by_user_id | uuid | **NULL** → users.id RESTRICT (يبقى NULL للقبول الورقي في V1 — D-050) |
 | recorded_by_user_id | uuid | **NOT NULL** → users.id RESTRICT (مَن سجّل الإقرار فعليًا) |
-| consent_version | varchar(20) | NULL (P-12) |
-| consent_text_snapshot | text | NULL (P-12؛ لا نص مُختلق) |
+| consent_version | varchar(20) | **NOT NULL** (D-050) |
+| consent_text_snapshot | text | **NOT NULL** (نص معتمد من المركز — D-050) |
 | created_at | timestamptz | |
 
 Unique (`child_id`, `consent_type_id`) · Indexes `(consent_type_id)`, `(accepted_by_user_id)`, `(recorded_by_user_id)`.
-**لا UPDATE ولا DELETE.** أي تصحيح/سحب/نسخة جديدة يحتاج قرار P-12 أولًا.
+**لا UPDATE ولا DELETE** (ممنوع تطبيقيًا — C0؛ لا Trigger في V1). أي سحب/تصحيح مستقبلي يحتاج ADR جديدًا.
 
-> **الفصل مهم:** `accepted_by_user_id` يجيب "مَن قبِل؟" (قد يكون ولي الأمر أو NULL لقبول ورقي)،
+> **الفصل مهم:** `accepted_by_user_id` يجيب "مَن قبِل؟" (NULL لقبول ورقي)،
 > و`recorded_by_user_id` يجيب "مَن أدخل السجل؟" (الموظف/المستخدم المنفّذ).
 > لا يُستخدم `accepted_by` كبديل عن المنفّذ، ولا العكس.
+>
+> **محسوم (D-050 — A1/B2/C0):** الإقرار ورقي، ويُسجّله موظف مخوّل:
+> `accepted_by_user_id = NULL` و`recorded_by_user_id = الموظف`.
+> يُلزم حفظ `consent_version` + `consent_text_snapshot` من نص معتمد (NOT NULL).
+> لا قبول رقمي ولا سحب/تصحيح في V1.
 
 ### 4.5 Treatment
 
@@ -614,8 +636,8 @@ effective(user):
 1. الأخصائي المسند للـ Case يرفع ملف PDF.
 2. يحدد session_date.
 3. يختار الأهداف التي عمل عليها في الجلسة من أهداف خطط نفس الـ Case.
-   (العدد الأدنى غير محسوم — P-31؛ لا تُفرض قاعدة "≥ 1" قبل القرار.)
-4. يسجّل النسبة الحالية (0–100) لكل هدف مختار.
+   **محسوم (D-052):** هدف واحد على الأقل لكل تقرير نهائي.
+4. يسجّل النسبة الحالية (0–100) لكل هدف مختار — إلزامية (D-052).
 5. النظام داخل transaction واحدة:
    أ. يحفظ reports + metadata الملف
    ب. لكل هدف: يقرأ previous = goals.progress_percentage
@@ -635,7 +657,7 @@ effective(user):
 | R-2 | `case.specialist_id IS NOT NULL` | 422 `CASE_NOT_ASSIGNED` |
 | R-3 | كل `goal_id` تابع لخطة `plan.case_id = report.case_id` | 422 `GOAL_NOT_IN_CASE` |
 | R-4 | لا تكرار لنفس `goal_id` في نفس الطلب | 422 |
-| R-5 | **عدد الأهداف: مؤقت — P-31.** لا تُثبّت قاعدة "≥ 1" ولا "≥ 0" قبل القرار | 422 مؤقت |
+| R-5 | **عدد الأهداف: محسوم D-052 — هدف واحد على الأقل** لكل تقرير نهائي، ونسبة تقدم لكل هدف | 422 `GOALS_REQUIRED` |
 | R-6 | `session_date` ليست في المستقبل | 422 |
 | R-7 | الملف PDF حقيقي (`mime` + magic bytes)، الحجم ≤ الحد المعتمد (P-26) | 422 `INVALID_FILE` |
 | R-8 | الملف يُحفظ باسم عشوائي على **private disk** | — |
@@ -675,8 +697,9 @@ effective(user):
 | **B** — أخصائي اختياري *(مؤقت)* | `specialist_id uuid NULL` | يدعم الحالتين (معلوم/غير معلوم)، لا يفرض سيناريو | يحتاج قاعدة "متى يصبح إلزاميًا؟" | لا تغيير هيكلي |
 | **C** — أخصائي إلزامي | `specialist_id NOT NULL` | مسؤولية واضحة | يمنع الحجز قبل تحديد الأخصائي، وقد يفرض إسنادًا خاطئًا | تحويل nullable → NOT NULL مؤلم لاحقًا |
 
-**التوصية المؤقتة:** **B**، مع منع "تأكيد" الموعد بدون أخصائي إن قرر العميل ذلك.
-**لا تُبنى أي حالة موعد أو إشعار جماعي قبل P-15.**
+**محسوم (D-053 — B+):** `specialist_id` يبقى nullable، والإسناد اختياري عند الحجز،
+ويصبح **إلزاميًا قبل تأكيد/إكمال الموعد** (قاعدة تطبيقية). لا حالات/إلغاء/إعادة جدولة في V1.
+**لا تُبنى أي حالة موعد أو إشعار جماعي قبل P-15/P-16.**
 
 ---
 
@@ -751,18 +774,18 @@ POST /children  (transaction)
   create child
   create consents:
     accepted_at            = provided ?? now
-    accepted_by_user_id    = parent user if digital acceptance, else NULL
+    accepted_by_user_id    = NULL (قبول ورقي — D-050)
     recorded_by_user_id    = actor (الموظف/المستخدم الذي سجّل)
-    consent_version        = NULL حتى P-12
-    consent_text_snapshot  = NULL حتى P-12 (لا نص مُختلق)
+    consent_version        = النص المعتمد من المركز (D-050)
+    consent_text_snapshot  = النص المعتمد من المركز (D-050؛ لا نص مُختلق)
 ```
 
 - جميع الإقرارات تُنشأ **داخل نفس transaction** الخاصة بتسجيل الطفل.
 - أي فشل → rollback كامل (لا طفل بدون إقرارات).
 - `consent_types` الثلاثة تُحمى: لا deactivate ولا delete ولا CRUD إداري.
-- **الفرض يشمل الأنواع المطلوبة النشطة فقط**؛ إضافة أنواع اختيارية أو رفضها سلوك غير محسوم (P-12).
-- **لا نص قانوني في الكود/الـ Seeder:** `description` مؤقت وصفي فقط، والنص الفعلي ينتظر العميل/القانوني.
-- **سحب/تصحيح الإقرار غير مسموح في v1**، لكنه سؤال قانوني معلّق P-12 (لا يُثبّت كمنع نهائي).
+- **الفرض يشمل الأنواع المطلوبة النشطة فقط**؛ لا أنواع اختيارية في V1 (C0).
+- **لا نص قانوني في الكود/الـ Seeder:** `description` مؤقت وصفي فقط، والنص الفعلي معتمد من المركز/القانوني.
+- **لا سحب/تصحيح للإقرار في V1** (C0)؛ المنع تطبيقي، ولا Trigger على `child_consents`.
 
 ### 10.2 الاختبارات الإلزامية
 
@@ -837,8 +860,7 @@ POST /children  (transaction)
 ### 12.4 Triggers الحاكمة
 `audit_logs_immutable` (UPDATE/DELETE ممنوع) ·
 `goal_progress_history_immutable` (UPDATE/DELETE ممنوع).
-**لا Trigger على `child_consents` في v1** حتى تُحسم سياسة التصحيح/السحب (P-12)؛
-المنع تطبيقي فقط (لا endpoints).
+**لا Trigger على `child_consents` في V1** — C0 يمنع السحب/التصحيح تطبيقيًا (لا endpoints)، ولا يُضاف Trigger غير معتمد.
 
 ---
 
@@ -952,12 +974,29 @@ POST /children  (transaction)
 
 ## 16. خارج نطاق v4 (مؤكد)
 
-`user_roles` · `sessions` · `payments` · `attachments` (عدا تقارير PDF) · `details jsonb` ·
-`session_notes` · `final_assessments` · `case_status_history` · `specialty` · `settings` ·
-`password_reset_tokens` · قنوات الإشعارات · Form Builder · Consent revocation · Consent wording ·
-Permanent deletion/anonymization (P-20).
+`user_roles` · `payments` · `attachments` (عدا تقارير PDF) · `details jsonb` ·
+`case_status_history` · `specialty` · `settings` ·
+`password_reset_tokens` · قنوات الإشعارات · Form Builder · Consent revocation · Consent wording.
+
+### 16.1 خارج نطاق V1 نهائيًا (D-048/D-049)
+
+| البند | القرار | الأثر |
+|---|---|---|
+| `final_assessments` / «التقييم النهائي» (P-21) | **D-048 — خارج V1** | لا جدول/أعمدة/Endpoints/Business Logic. |
+| `session_notes` / `sessions` / «ملاحظات الجلسة الأولى» (P-22) | **D-049 — خارج V1** | التقرير PDF هو سجل الجلسة الوحيد. |
+
+> أي تنفيذ مستقبلي لأي منهما يتطلب ADR جديدًا وmigration جديدة.
+> لا يُشتق أي منهما ضمنيًا من `initial_assessments` أو `reports`.
 
 **معلّق وليس خارج النطاق:** Parent auth (P-01) · Staff auth identifier (P-32) ·
-Parent account delivery (P-29) · Consent recording/versioning (P-12) ·
-Appointment specialist (P-15) · Notifications (P-16) · Report goal count (P-31) ·
-Permanent deletion/anonymization (P-20) · Child-code edge cases (P-03) · Report hide role (P-07).
+Parent account delivery (P-29) · Parent name storage (P-04) ·
+Scale names (P-09) · Notifications (P-16) · Child-code edge cases (P-03) · Report hide role (P-07).
+
+### 16.2 قرارات Gate C المطبقة على الـ Schema
+
+| القرار | الأثر |
+|---|---|
+| **D-050** (P-12) | `child_consents.consent_version` و`consent_text_snapshot` → **NOT NULL**؛ لا قبول رقمي ولا سحب في V1. |
+| **D-051** (P-20) | لا حذف نهائي/إمحاء؛ `RESTRICT` وTriggers كما هي. |
+| **D-052** (P-31) | لا تغيير Schema؛ «هدف واحد على الأقل + نسبة لكل هدف» تحقق تطبيقي داخل transaction. |
+| **D-053** (P-15) | لا تغيير Schema؛ `specialist_id` nullable، والإلزام قبل التأكيد/الإكمال تطبيقي. |

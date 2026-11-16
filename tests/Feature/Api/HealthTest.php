@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Support\Facades\DB;
+
 it('returns the approved health contract', function () {
     $response = $this->getJson('/api/v1/health');
 
@@ -20,7 +22,7 @@ it('returns the approved health contract', function () {
 it('serves the health endpoint without touching the database', function () {
     // The endpoint must stay available even if PostgreSQL is down.
     // It is a pure response; any DB access here would fail the query log assertion.
-    \Illuminate\Support\Facades\DB::listen(function () {
+    DB::listen(function () {
         throw new RuntimeException('The health endpoint must not query the database.');
     });
 
