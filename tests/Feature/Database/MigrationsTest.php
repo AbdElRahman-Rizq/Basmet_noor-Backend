@@ -11,9 +11,10 @@ it('runs every migration against the isolated test database', function () {
 
     $applied = DB::table('migrations')->pluck('migration');
 
-    expect($applied)->toHaveCount(18)
+    expect($applied)->toHaveCount(19)
         ->and($applied->first())->toContain('000001_create_roles_permissions_tables')
-        ->and($applied->last())->toContain('000018_create_audit_logs_table');
+        ->and($applied->contains('2026_11_17_000018_create_audit_logs_table'))->toBeTrue()
+        ->and($applied->last())->toContain('102008_create_personal_access_tokens_table');
 });
 
 it('creates every approved table only', function () {
@@ -31,6 +32,8 @@ it('creates every approved table only', function () {
         'reports', 'goal_progress_history',
         'homework', 'homework_comments',
         'appointments', 'notifications', 'audit_logs',
+        // Gate D / T-2.0 — framework token table, not a domain table.
+        'personal_access_tokens',
     ];
 
     foreach ($expected as $table) {

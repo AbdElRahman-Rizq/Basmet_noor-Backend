@@ -16,7 +16,7 @@ it('scenario 1: migrate:fresh and db:seed succeed from scratch on the test datab
     // an empty schema proves the full install path. The run is transactional so
     // it cannot leak reference rows into other tests.
     expect(DB::selectOne('select current_database() as db')->db)->toBe('basma_noor_test');
-    expect(DB::table('migrations')->count())->toBe(18);
+    expect(DB::table('migrations')->count())->toBe(19);
 
     $this->seed(DatabaseSeeder::class);
 
