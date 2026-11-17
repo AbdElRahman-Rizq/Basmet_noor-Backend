@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\LogoutController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\ReactivateUserController;
 use App\Http\Controllers\Api\V1\UpdateSpecialistController;
+use App\Http\Controllers\Api\V1\UpdateUserPermissionsController;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\User;
 use App\Support\ApiResponse;
@@ -50,4 +51,7 @@ Route::middleware(['auth:api', EnsureUserIsActive::class])->group(function () {
 
     Route::middleware('can:reactivateUser,user')
         ->post('/users/{user}/reactivate', ReactivateUserController::class);
+
+    Route::middleware('can:manageUserPermissions,user')
+        ->put('/users/{user}/permissions', UpdateUserPermissionsController::class);
 });

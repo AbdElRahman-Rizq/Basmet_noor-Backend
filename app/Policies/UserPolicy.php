@@ -67,6 +67,28 @@ final class UserPolicy extends BasePolicy
         return $this->canManageAccountStatus($actor, $target);
     }
 
+    /**
+     * Individual permission overrides (D-005, D-030, T-2.9).
+     *
+     * Only an active SUPER_ADMIN may manage overrides, and only for CO_ADMIN
+     * accounts. SUPER_ADMIN targets are forbidden (I-6) and self-modification
+     * is banned for everyone (I-2/I-9). `permissions.manage` is deliberately
+     * not used here because an individually granted CO_ADMIN must never gain
+     * this ability (I-1/I-8).
+     *
+     * Gate::before bypasses this policy for SUPER_ADMIN, so the request layer
+     * repeats the target-scope and self checks.
+     */
+    public function manageUserPermissions(User $actor, User $target): bool
+    {
+        return ! $actor->trashed()
+            && $actor->is_active
+            && $actor->isSuperAdmin()
+            && ! $actor->is($target)
+            && ! $target->trashed()
+            && $target->role?->name === Role::CO_ADMIN;
+    }
+
     private function canManageAccountStatus(User $actor, User $target): bool
     {
         if ($actor->trashed() || ! $actor->is_active) {
