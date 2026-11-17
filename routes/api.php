@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\Api\V1\CreateCoAdminController;
 use App\Http\Controllers\Api\V1\CreateSpecialistController;
+use App\Http\Controllers\Api\V1\DeactivateUserController;
 use App\Http\Controllers\Api\V1\LogoutController;
 use App\Http\Controllers\Api\V1\MeController;
+use App\Http\Controllers\Api\V1\ReactivateUserController;
 use App\Http\Controllers\Api\V1\UpdateSpecialistController;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\User;
 use App\Support\ApiResponse;
 use Illuminate\Support\Facades\Route;
@@ -27,16 +30,24 @@ Route::get('/health', function () {
     ], 'Service is healthy');
 });
 
-Route::middleware('auth:api')->group(function () {
+// Every authenticated route also rejects inactive accounts (D-055), even when
+// the request carries a token that was issued before deactivation.
+Route::middleware(['auth:api', EnsureUserIsActive::class])->group(function () {
     Route::get('/me', MeController::class);
     Route::post('/logout', LogoutController::class);
+
+    Route::middleware('can:createCoAdmin,'.User::class)
+        ->post('/admins', CreateCoAdminController::class);
+
+    Route::middleware('can:createSpecialist,'.User::class)
+        ->post('/specialists', CreateSpecialistController::class);
+
+    Route::middleware('can:updateSpecialist,specialist')
+        ->patch('/specialists/{specialist}', UpdateSpecialistController::class);
+
+    Route::middleware('can:deactivateUser,user')
+        ->post('/users/{user}/deactivate', DeactivateUserController::class);
+
+    Route::middleware('can:reactivateUser,user')
+        ->post('/users/{user}/reactivate', ReactivateUserController::class);
 });
-
-Route::middleware(['auth:api', 'can:createCoAdmin,'.User::class])
-    ->post('/admins', CreateCoAdminController::class);
-
-Route::middleware(['auth:api', 'can:createSpecialist,'.User::class])
-    ->post('/specialists', CreateSpecialistController::class);
-
-Route::middleware(['auth:api', 'can:updateSpecialist,specialist'])
-    ->patch('/specialists/{specialist}', UpdateSpecialistController::class);

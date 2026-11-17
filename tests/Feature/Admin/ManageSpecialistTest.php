@@ -310,11 +310,13 @@ it('rejects an inactive co admin', function () {
 
     $this->withToken(d12Token($actor))
         ->postJson('/api/v1/specialists', d12Payload())
-        ->assertForbidden();
+        ->assertUnauthorized()
+        ->assertJsonPath('error.code', 'UNAUTHENTICATED');
 
     $this->withToken(d12Token($actor))
         ->patchJson("/api/v1/specialists/{$target->id}", ['name' => 'Hijacked'])
-        ->assertForbidden();
+        ->assertUnauthorized()
+        ->assertJsonPath('error.code', 'UNAUTHENTICATED');
 
     expect(User::query()->where('email', 'specialist@example.test')->exists())->toBeFalse()
         ->and(DB::table('audit_logs')->count())->toBe(0);
@@ -328,7 +330,8 @@ it('rejects an inactive super admin', function () {
 
     $this->withToken(d12Token($actor))
         ->postJson('/api/v1/specialists', d12Payload())
-        ->assertForbidden();
+        ->assertUnauthorized()
+        ->assertJsonPath('error.code', 'UNAUTHENTICATED');
 
     expect(User::query()->where('email', 'specialist@example.test')->exists())->toBeFalse()
         ->and(DB::table('audit_logs')->count())->toBe(0);

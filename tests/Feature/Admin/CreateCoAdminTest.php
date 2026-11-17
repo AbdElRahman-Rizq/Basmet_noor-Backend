@@ -154,13 +154,14 @@ it('forbids a parent from creating a co admin', function () {
     expect(User::query()->where('email', 'coadmin@example.test')->exists())->toBeFalse();
 });
 
-it('forbids an inactive super admin from creating a co admin', function () {
+it('rejects an inactive super admin with the standard unauthenticated envelope', function () {
     d11CoAdminRole();
     $actor = fixtureUser(fixtureRole(Role::SUPER_ADMIN, 100), ['is_active' => false]);
 
     $this->withToken(d11Token($actor))
         ->postJson('/api/v1/admins', d11Payload())
-        ->assertForbidden();
+        ->assertUnauthorized()
+        ->assertJsonPath('error.code', 'UNAUTHENTICATED');
 
     expect(User::query()->where('email', 'coadmin@example.test')->exists())->toBeFalse();
 });

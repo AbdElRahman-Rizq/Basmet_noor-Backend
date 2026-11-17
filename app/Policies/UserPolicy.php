@@ -47,6 +47,48 @@ final class UserPolicy extends BasePolicy
             && $target->role?->name === Role::SPECIALIST;
     }
 
+    /**
+     * Deactivation matrix (D-055): SUPER_ADMIN may deactivate any user except
+     * themselves; an active CO_ADMIN with `specialists.manage` may deactivate
+     * SPECIALIST accounts only. No other role is authorized, and an individual
+     * `users.deactivate` grant never widens this scope.
+     */
+    public function deactivateUser(User $actor, User $target): bool
+    {
+        return $this->canManageAccountStatus($actor, $target);
+    }
+
+    /**
+     * Reactivation reuses the same ability as deactivation (D-055). There is
+     * deliberately no `users.activate` permission.
+     */
+    public function reactivateUser(User $actor, User $target): bool
+    {
+        return $this->canManageAccountStatus($actor, $target);
+    }
+
+    private function canManageAccountStatus(User $actor, User $target): bool
+    {
+        if ($actor->trashed() || ! $actor->is_active) {
+            return false;
+        }
+
+        // Self-modification is forbidden for every role (I-2/I-9), including
+        // SUPER_ADMIN, whose Gate::before bypass skips this policy entirely.
+        if ($actor->is($target)) {
+            return false;
+        }
+
+        if ($actor->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->isActiveCoAdmin($actor)
+            && $this->allows($actor, 'specialists.manage')
+            && ! $target->trashed()
+            && $target->role?->name === Role::SPECIALIST;
+    }
+
     private function isActiveCoAdmin(User $actor): bool
     {
         return ! $actor->trashed()
