@@ -85,7 +85,7 @@ Legend: ✅ ready now · 🔶 ready with a documented temporary default · ⛔ b
 |---|---|---|---|---|
 | **D1.1** | T-2.6a | SUPER_ADMIN creates CO_ADMIN | Non-SUPER_ADMIN → 403; audit row; validation for role/email/mobile | D0.4, D0.5 |
 | **D1.2** | T-2.7 | CO_ADMIN creates/edits **SPECIALIST only** | Any other role → 403 even with `users.create`; audit | D1.1 |
-| **D1.3** | T-2.8 | Deactivate/reactivate account + revoke tokens | Deactivated user cannot authenticate; tokens revoked; cannot reactivate self | D1.2 |
+| **D1.3** | T-2.8 | Deactivate/reactivate account + revoke tokens | Matrix **D-055**: SUPER_ADMIN any except self; CO_ADMIN SPECIALIST only via `specialists.manage`; self banned incl. SUPER_ADMIN; inactive token → 401; tokens revoked | D1.2 |
 | **D1.4** | T-2.9 | Per-user permission overrides | Grant/deny respected; no overrides on SUPER_ADMIN; audit before/after | D0.3 |
 | **D1.5** | T-2.10/2.11 | Escalation invariants I-1…I-11 + self-modification ban | 11+ tests: role level, grant-not-owned, self role/status/permissions, no SUPER_ADMIN override | All Wave 1 |
 | **D1.6** | T-2.13 | Auth audit events | 🔶 logout + token events now; failed-login event after **P-32** | D0.5 |
