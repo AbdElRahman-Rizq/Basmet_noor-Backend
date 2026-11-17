@@ -134,7 +134,7 @@
 | `[ ]` T-2.9 | تعديل صلاحيات CO_ADMIN فرديًا | endpoint + audit | — |
 | `[ ]` T-2.10 | اختبارات منع التصعيد (I-1…I-11) | 11 حالة على الأقل | — |
 | `[ ]` T-2.11 | منع تعديل المستخدم لنفسه (role/is_active/permissions) | 403 + اختبار | — |
-| `[ ]` T-2.12 | Audit logger + redaction list | password/token/child_name/parent_name لا تُسجَّل | — |
+| `[x]` T-2.12 | Audit logger + redaction list | password/token/child_name/parent_name لا تُسجَّل | — |
 | `[ ]` T-2.13 | Audit login/logout/failed login | بلا أسرار | — |
 
 ---
