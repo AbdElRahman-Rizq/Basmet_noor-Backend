@@ -16,6 +16,8 @@ class Role extends Model
 
     public const CO_ADMIN = 'CO_ADMIN';
 
+    public const SPECIALIST = 'SPECIALIST';
+
     protected $fillable = [
         'name',
         'description',

@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Api\V1\CreateCoAdminController;
+use App\Http\Controllers\Api\V1\CreateSpecialistController;
 use App\Http\Controllers\Api\V1\LogoutController;
 use App\Http\Controllers\Api\V1\MeController;
+use App\Http\Controllers\Api\V1\UpdateSpecialistController;
 use App\Models\User;
 use App\Support\ApiResponse;
 use Illuminate\Support\Facades\Route;
@@ -32,3 +34,9 @@ Route::middleware('auth:api')->group(function () {
 
 Route::middleware(['auth:api', 'can:createCoAdmin,'.User::class])
     ->post('/admins', CreateCoAdminController::class);
+
+Route::middleware(['auth:api', 'can:createSpecialist,'.User::class])
+    ->post('/specialists', CreateSpecialistController::class);
+
+Route::middleware(['auth:api', 'can:updateSpecialist,specialist'])
+    ->patch('/specialists/{specialist}', UpdateSpecialistController::class);
