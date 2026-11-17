@@ -123,7 +123,7 @@
 |---|---|---|---|
 | `[x]` T-2.0 | تثبيت Sanctum + migration `personal_access_tokens` | `personal_access_tokens` موجود ويُستخدم للتوكنات | Gate C |
 | `[!]` T-2.1 | Staff login — **محظور** حتى تحديد identifier | Sanctum token + rate limit + `is_active` | **P-32** |
-| `[ ]` T-2.2 | Logout / me / permissions payload | `/me` يرجّع role + effective permissions | — |
+| `[x]` T-2.2 | Logout / me / permissions payload | `/me` يرجّع role + effective permissions | — |
 | `[!]` T-2.3 | Parent login — **محظور** حتى P-01 | `[!]` | **P-01** |
 | `[x]` T-2.4 | Permission resolver (role ∪ grants − denies) | Unit tests لكل حالة | — |
 | `[x]` T-2.5 | Gate/Policy base + SUPER_ADMIN bypass | اختبار تجاوز | — |

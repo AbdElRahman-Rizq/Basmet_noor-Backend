@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\V1\LogoutController;
+use App\Http\Controllers\Api\V1\MeController;
 use App\Support\ApiResponse;
 use Illuminate\Support\Facades\Route;
 
@@ -19,4 +21,9 @@ Route::get('/health', function () {
         'application' => 'basma-noor',
         'version' => '1.0.0',
     ], 'Service is healthy');
+});
+
+Route::middleware('auth:api')->group(function () {
+    Route::get('/me', MeController::class);
+    Route::post('/logout', LogoutController::class);
 });
