@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Policies\UserPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -16,6 +17,8 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::policy(User::class, UserPolicy::class);
+
         Gate::before(function (?User $user, string $ability): ?bool {
             if ($user === null || $user->trashed() || ! $user->is_active) {
                 return null;
