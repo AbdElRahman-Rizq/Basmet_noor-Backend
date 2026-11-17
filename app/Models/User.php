@@ -47,6 +47,11 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
+    public function isSuperAdmin(): bool
+    {
+        return $this->role?->name === Role::SUPER_ADMIN;
+    }
+
     public function permissions(): BelongsToMany
     {
         return $this->belongsToMany(Permission::class, 'user_permissions')

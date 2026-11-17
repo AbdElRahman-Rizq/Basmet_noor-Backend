@@ -125,8 +125,8 @@
 | `[!]` T-2.1 | Staff login — **محظور** حتى تحديد identifier | Sanctum token + rate limit + `is_active` | **P-32** |
 | `[ ]` T-2.2 | Logout / me / permissions payload | `/me` يرجّع role + effective permissions | — |
 | `[!]` T-2.3 | Parent login — **محظور** حتى P-01 | `[!]` | **P-01** |
-| `[ ]` T-2.4 | Permission resolver (role ∪ grants − denies) | Unit tests لكل حالة | — |
-| `[ ]` T-2.5 | Gate/Policy base + SUPER_ADMIN bypass | اختبار تجاوز | — |
+| `[x]` T-2.4 | Permission resolver (role ∪ grants − denies) | Unit tests لكل حالة | — |
+| `[x]` T-2.5 | Gate/Policy base + SUPER_ADMIN bypass | اختبار تجاوز | — |
 | `[ ]` T-2.6a | SUPER_ADMIN ينشئ CO_ADMIN | 403 لغيره + audit | — |
 | `[!]` T-2.6b | SUPER_ADMIN ينشئ RECEPTION | لا يُنفّذ قبل تفعيل الدور | **P-02** |
 | `[ ]` T-2.7 | CO_ADMIN ينشئ/يعدّل SPECIALIST فقط | محاولة إنشاء أي دور آخر → 403 (حتى مع أي صلاحية إدارية) | — |

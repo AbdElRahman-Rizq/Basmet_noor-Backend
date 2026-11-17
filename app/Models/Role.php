@@ -12,6 +12,8 @@ class Role extends Model
 {
     use HasFactory, HasUuids;
 
+    public const SUPER_ADMIN = 'SUPER_ADMIN';
+
     protected $fillable = [
         'name',
         'description',
