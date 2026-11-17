@@ -15,7 +15,7 @@
 | 2 | P-12 / P-20 / P-31 / P-15 consistent | ✅ | P-12: `consent_version` + `consent_text_snapshot` **NOT NULL**, `accepted_by_user_id` nullable, `recorded_by_user_id` NOT NULL, **0 triggers** on `child_consents`. P-20: 2 append-only triggers, `RESTRICT` FKs, no purge/anonymization objects. P-31: **no** `report_goals`, **no** `reports.status`, partial unique `(report_id, goal_id)`. P-15: `appointments.specialist_id` nullable, `status varchar NULL`, **0 CHECK constraints**, no cancel/reschedule columns |
 | 3 | D-046 / D-047 / D-048 / D-049 respected | ✅ | `children.age smallint` + `age_recorded_at date`, **no `date_of_birth`** · `functional_scale_scores.score smallint` + `CHECK 0..10` · **no** `final_assessments`, `session_notes`, `sessions` |
 | 4 | No unapproved schema changes | ✅ | Table set matches design exactly; no extra table/column was introduced. Missing tables are absent by decision, not by omission |
-| 5 | No pending requirement silently approved | ✅ | P-04 (parent name), P-09 (scale names), P-13, P-03, P-07, P-02, P-16, P-19, P-26, P-27 remain open/blocked in docs and roadmap |
+| 5 | No pending requirement silently approved | ✅ | P-04 (parent name), P-09 (scale names), P-03, P-07, P-02, P-16, P-19, P-26, P-27 remain open/blocked in docs and roadmap |
 | 6 | Historical readiness reports untouched | ✅ | Both remain **untracked**, not part of `1e8fbd3`, unmodified: `GATE_C_READINESS_REPORT.md` `90DCEB04…` · `GATE_C_FINAL_READINESS_REPORT.md` `F638C786…` |
 
 **Executable proof:** `89 passed (483 assertions)` · `Pint PASS — 108 files` · `git diff 1e8fbd3 -- database app/Models database/seeders database/factories` is empty.
@@ -40,7 +40,6 @@ Severity: 🔴 blocks release · 🟠 blocks a feature · 🟡 edge case.
 | **P-32** | Staff login by email, mobile, or both? | T-2.1 login, T-2.13 failed-login audit | 🔴 | Everything except the login endpoint. Use Sanctum test tokens meanwhile. **Production login impossible** |
 | **P-01** | Parent login mechanism | T-2.3, all parent-facing endpoints | 🔴 for parent app | Yes for the staff API; parent API cannot ship |
 | **P-29** | Who creates the parent account / how credentials are delivered | T-3.6b, parent onboarding | 🔴 for parent app | Yes for staff API; no real parent can be onboarded |
-| **P-13** | Who may assign a specialist to a case? | T-3.13 assignment; therefore the treatment workflow | 🔴 for clinical flow | Mechanically yes, but no one can assign except the seeded temporary SUPER_ADMIN default. **Needs a decision** |
 | **P-02** | RECEPTION role/permissions | T-2.6b, reception operations | 🟠 | Yes — CO_ADMIN/SUPER_ADMIN can operate V1; RECEPTION stays disabled |
 | **P-03** | Child-code edge cases/fallback | T-3.4 | 🟡 | Yes — happy path defined by D-041; reject invalid names, no manual fallback |
 | **P-07** | Who may hide a report + replace/delete workflow | T-6.7; replace/delete | 🟠 | Yes — reports are create-only, hidden flag untouched except seeded SUPER_ADMIN permission |
@@ -54,7 +53,7 @@ Severity: 🔴 blocks release · 🟠 blocks a feature · 🟡 edge case.
 ### Minimum V1 backend scope (definition)
 **In scope (staff API):** auth token plumbing + RBAC, staff/CO_ADMIN/SPECIALIST management, branches/knowledge sources, child registration for an **existing** parent + consents, cases + assignment gate, initial assessment, plans/goals/progress, PDF reports + progress transaction, appointments, homework, notifications (read only), OpenAPI + security tests.
 
-**Independent of client decisions:** everything above except staff login (**P-32**), case assignment ownership (**P-13**), and real parent onboarding (**P-01/P-29**).
+**Independent of client decisions:** everything above except staff login (**P-32**) and real parent onboarding (**P-01/P-29**).
 
 **Explicitly out:** parent authentication/onboarding, RECEPTION activation, automatic notifications, report hiding/replacement, child editing, case-status workflow, assessment editing, hard delete/anonymization, final assessment, session notes, frontend.
 
@@ -93,7 +92,7 @@ Legend: ✅ ready now · 🔶 ready with a documented temporary default · ⛔ b
 
 **Wave gate:** A CO_ADMIN cannot create an admin, elevate themselves, or grant a permission they lack.
 
-### Wave 2 — Lookups, children, cases (mostly ✅; D2.10 ⛔)
+### Wave 2 — Lookups, children, cases (✅; P-13 resolved by D-054)
 
 | ID | Roadmap | Task | Acceptance / tests | Depends |
 |---|---|---|---|---|
@@ -106,10 +105,10 @@ Legend: ✅ ready now · 🔶 ready with a documented temporary default · ⛔ b
 | **D2.7** | T-3.10 | Children list/show scopes | Parent sees own only (404 otherwise); admin sees all; specialist sees only assigned cases | D2.5 |
 | **D2.8** | T-3.12 | Case create/update (admin) | Assignment triple stays consistent; case can be created unassigned; no status workflow | D2.5 |
 | **D2.9** | T-3.14 | `requireAssigned()` gate | 5 tests: plan · goal · progress · report · homework reject when `cases.specialist_id` is null | D2.8 |
-| **D2.10** | T-3.13 | `AssignSpecialistAction` + audit | ⛔ **P-13**. When approved: target must be active SPECIALIST; use existing `cases.assign_specialist` (seeded SUPER_ADMIN-only), no new grants; audit | P-13 |
+| **D2.10** | T-3.13 | `AssignSpecialistAction` + audit | ✅ **P-13 resolved (D-054)**. SUPER_ADMIN + CO_ADMIN authorized; target must be active SPECIALIST; grant `cases.assign_specialist` to CO_ADMIN defaults + update SeedersTest; audit | D0.3, D2.8 |
 | **D2.11** | T-3.15 | Child/Case policies + IDOR | 404/403 matrix for parent/specialist/CO_ADMIN/SUPER_ADMIN | D2.7, D2.9 |
 
-**Critical note:** without **D2.10**, no case can be assigned in production, so plans/goals/reports cannot start. This makes **P-13 a release blocker**, even though the rest of Wave 2 can be built now.
+**Critical note:** P-13 is resolved (D-054), so **D2.10 is unblocked**. Case assignment still requires the approved `cases.assign_specialist` default for CO_ADMIN before the clinical flow can start.
 
 ### Wave 3 — Initial assessment (✅; question/scale **content** remains P-10/P-09)
 
@@ -173,7 +172,7 @@ P-32 (client) ──► T-2.1 login ──► D0.4 /me
                               └─► D1.1 → D1.2 → D1.5
 D0.1 → D0.2 → D0.3 ───────────────┘
 
-D1.x ──► D2.5 child registration ──► D2.8 case ──► [P-13 → D2.10 assign] ──► D2.9 gate
+D1.x ──► D2.5 child registration ──► D2.8 case ──► [D2.10 assign] ──► D2.9 gate
                                                    │
                                                    ├─► D3.x assessment
                                                    ├─► D4.x plans/goals
@@ -189,7 +188,7 @@ D1.x ──► D2.5 child registration ──► D2.8 case ──► [P-13 → D
 
 **Hard dependencies on decisions:**
 - **P-32** → production login (**T-2.1**). Nothing else blocks Wave 0.
-- **P-13** → case assignment (**D2.10**), which gates the entire clinical flow.
+- **P-13** is resolved by **D-054**; case assignment (**D2.10**) is unblocked subject to its CO_ADMIN default grant.
 - **P-01/P-29** → V1-B parent app only.
 - **P-07/P-16/P-02** → optional/deferred features, not V1-A.
 
@@ -222,7 +221,7 @@ Acceptance checklist:
 4. `php artisan test` + `./vendor/bin/pint` green.
 5. One commit: `Gate D: T-2.0 Sanctum personal access tokens`.
 
-**Before starting Wave 2, request P-13 (assignment ownership).** It is the only open decision that can stall the clinical critical path even though the rest of Gate D is implementation-ready.
+**P-13 is resolved by D-054.** D2.10 (case assignment) is unblocked and must add the CO_ADMIN default before the clinical flow can start.
 
 ---
 
