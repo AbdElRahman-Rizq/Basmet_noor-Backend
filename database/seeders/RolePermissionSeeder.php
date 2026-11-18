@@ -11,14 +11,15 @@ class RolePermissionSeeder extends Seeder
 {
     /**
      * Default role permissions from DATABASE_DESIGN.md §5.4.
-     * Pending-dependent permissions (consents.record, cases.assign_specialist,
-     * admins.manage, permissions.manage) are intentionally NOT granted by default.
+     * Reserved permissions (consents.record, admins.manage, permissions.manage)
+     * are intentionally NOT granted by default. `cases.assign_specialist` is
+     * granted to CO_ADMIN only, per D-054 (P-13 resolved).
      */
     public const DEFAULTS = [
         'CO_ADMIN' => [
             'children.view_all', 'children.view_own', 'children.create', 'children.update',
             'parents.view', 'parents.manage',
-            'cases.view_all', 'cases.create', 'cases.update',
+            'cases.view_all', 'cases.create', 'cases.update', 'cases.assign_specialist',
             'assessments.view_all', 'assessments.create', 'assessments.update',
             'assessments.manage_questions', 'assessments.manage_scales', 'assessments.manage_reinforcers',
             'consents.view',

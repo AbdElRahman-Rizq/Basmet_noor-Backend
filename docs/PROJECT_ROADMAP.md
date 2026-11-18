@@ -156,7 +156,7 @@
 | `[ ]` T-3.10 | عرض الأطفال (Admin vs Parent scope) | ولي أمر لا يرى غير أطفاله → 404 | — |
 | `[!]` T-3.11 | تعديل بيانات الطفل (بدون الاسم) + audit | حقول محدودة | **P-19** |
 | `[ ]` T-3.12 | إنشاء Case + تعديله إداريًا | لا يتطلب أخصائيًا | — |
-| `[!]` T-3.13 | `AssignSpecialistAction` + audit | يتحقق من دور SPECIALIST ونشاطه | **P-13** (مَن يملك الإسناد) |
+| `[ ]` T-3.13 | `AssignSpecialistAction` + audit | P-13 resolved (D-054): `cases.assign_specialist` default granted to CO_ADMIN; action itself pending D2.8/D2.11 | — |
 | `[ ]` T-3.14 | `requireAssigned()` + 5 اختبارات للبوابة | خطة/هدف/تقدم/تقرير/واجب | — |
 | `[ ]` T-3.15 | سياسات Child/Case + IDOR | 404/403 متوقعة | — |
 
