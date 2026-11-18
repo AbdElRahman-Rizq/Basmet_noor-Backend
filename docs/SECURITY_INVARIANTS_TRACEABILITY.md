@@ -1,0 +1,62 @@
+# Security Invariants Traceability (Gate D — D1.5 / T-2.10 + T-2.11)
+
+Source of truth: `DATABASE_DESIGN.md` §5.2 (I-1…I-11), `DECISIONS.md` D-030/D-055,
+`GATE_D_EXECUTION_PLAN.md` D1.5.
+
+Scope of this verification: the staff-management, authorization and audit surface that
+exists after D1.4. Child/case endpoints (`D2.5+`) and parent onboarding (`P-01/P-29`)
+do not exist yet, so invariants that depend on those endpoints are marked **deferred**
+with the phase that will complete them.
+
+## Matrix
+
+| # | Rule (summary) | Implementation | Automated coverage | Status |
+|---|---|---|---|---|
+| **I-1** | Only SUPER_ADMIN holds `permissions.manage` / `admins.manage`, including `user_permissions` and `roles` management. | `PermissionSeeder` catalogue · `RolePermissionSeeder` grants every permission to SUPER_ADMIN and excludes both permissions from every other default set · `UserPolicy::createCoAdmin` and `UserPolicy::manageUserPermissions` use explicit SUPER_ADMIN checks (not `permissions.manage`) · `AuthServiceProvider::boot` bypasses Gate only for active, non-deleted SUPER_ADMIN. | `SeedersTest::grants every permission to SUPER_ADMIN…` · `ManageUserPermissionsTest::forbids a co admin from managing permissions…` · `ManageUserPermissionsTest::forbids other roles…` · `SecurityInvariantsTest::keeps permission overrides locked even when permissions.manage is granted individually` · `CreateCoAdminTest::forbids a co admin…even with users.create` · `ManageSpecialistTest::does not let a specialist…specialists.manage`. | Covered |
+| **I-2** | A user cannot change their own `role_id`, `is_active`, or `user_permissions` rows. | `UserPolicy::manageUserPermissions` and `canManageAccountStatus` self checks · `UpdateUserPermissionsRequest::authorize` · `UpdateUserPermissionOverridesAction` write-boundary guard · `CreateCoAdminRequest` / `CreateSpecialistRequest` / `UpdateSpecialistRequest` reject `role_id`, `is_active`, `created_by_user_id`, permission fields · no role-update endpoint exists. | `AccountStatusTest::forbids a super admin from deactivating or reactivating themselves` · `ManageUserPermissionsTest::forbids users from modifying their own permissions` · `SecurityInvariantsTest::refuses to write overrides for a super admin or for the actor themselves` · `CreateCoAdminTest::rejects client supplied role…` · `ManageSpecialistTest::rejects role and server controlled fields…` · `ManageSpecialistTest::does not let a co admin promote a specialist…` · `SecurityInvariantsTest::ignores role and status fields on the permission endpoint`. | Covered for exposed fields; role-change endpoint does not exist yet (I-5 deferred with it). |
+| **I-3** | CO_ADMIN creates/edits SPECIALIST accounts only, through `specialists.manage`, never through `users.*`. | `UserPolicy::createSpecialist` / `updateSpecialist` explicit CO_ADMIN + `specialists.manage` + target SPECIALIST checks · `CreateSpecialistController` resolves the role server-side · `CreateSpecialistRequest`/`UpdateSpecialistRequest` reject role/status/permission fields · `UpdateSpecialistController` repeats the target-role check because `Gate::before` bypasses policies for SUPER_ADMIN. | `ManageSpecialistTest::lets a co admin create…` · `…edit an existing specialist` · `does not let a co admin create a co admin or super admin` · `does not let a co admin edit a co admin or super admin` · `does not let a co admin promote a specialist…` · `does not let a specialist manage users…` · `requires specialists.manage…` · `keeps the specialist endpoint scoped even for a super admin`. | Covered |
+| **I-4** | Delegation safety: a user cannot be granted a permission the grantor does not hold. | `UpdateUserPermissionOverridesAction` resolves every requested grant through `PermissionResolver::allows($actor, …)` and throws `AuthorizationException` otherwise; `admins.manage` and `permissions.manage` are rejected as non-delegable for every actor. | `ManageUserPermissionsTest::rejects grants of non delegable permissions` · `SecurityInvariantsTest::refuses to delegate a permission the actor does not hold`. | Covered |
+| **I-5** | A role with `level >= actor.level` can only be assigned by SUPER_ADMIN. | No role-assignment endpoint or `role_id` write path exists in Gate D. All exposed user endpoints reject `role_id` client input; roles are server-resolved (`CreateCoAdminController`, `CreateSpecialistController`). | `CreateCoAdminTest::rejects client supplied role and server controlled fields` · `CreateCoAdminTest::ignores an untrusted role field and always assigns co admin` · `ManageSpecialistTest::rejects role and server controlled fields when creating a specialist` · `ManageSpecialistTest::validates specialist update input` (role id) · `ManageSpecialistTest::does not let a co admin promote a specialist…`. | Covered structurally; the level comparison belongs to the future role-management endpoint (not in this batch). |
+| **I-6** | No `user_permissions` rows for SUPER_ADMIN. | `UpdateUserPermissionsRequest::authorize` accepts CO_ADMIN targets only · `UserPolicy::manageUserPermissions` same rule · `UpdateUserPermissionOverridesAction` repeats the target-role guard at the write boundary · `PermissionResolver` ignores override rows for SUPER_ADMIN by returning the full catalogue. | `ManageUserPermissionsTest::forbids managing permissions of non co admin targets` (SUPER_ADMIN dataset) · `SecurityInvariantsTest::refuses to write overrides for a super admin or for the actor themselves` · `PermissionResolverTest::resolves every permission for SUPER_ADMIN without touching permission rows`. | Covered |
+| **I-7** | Every role/permission/status change is audited with old and new values. | `AuditLogger` append-only writer with recursive redaction · `CreateCoAdminController`, `CreateSpecialistController`, `UpdateSpecialistController`, `ChangeUserStatusAction`, `UpdateUserPermissionOverridesAction` write explicit old/new values; no request body is stored wholesale. | `CreateCoAdminTest::writes the creation to the audit log…` · `ManageSpecialistTest::audits specialist edits…` · `AccountStatusTest::writes exactly one audit row per actual transition` · `ManageUserPermissionsTest::audits every actual override change…` · `AuditLoggerTest` (complete row, redaction, append-only) · `TriggersTest::makes audit_logs append-only`. | Covered |
+| **I-8** | CO_ADMIN never changes `role_id`, never grants/revokes permissions, and never creates PARENT/RECEPTION/CO_ADMIN. | `UserPolicy` explicit role/target rules · `UpdateUserPermissionsRequest` + `UserPolicy::manageUserPermissions` limit overrides to SUPER_ADMIN actors · `CreateCoAdminRequest`/`CreateSpecialistRequest` reject privileged fields · no PARENT/RECEPTION/CO_ADMIN creation route except the SUPER_ADMIN-only `/admins` endpoint. | `ManageSpecialistTest` (create/edit/promote/privileged-field cases) · `ManageUserPermissionsTest::forbids a co admin…` · `CreateCoAdminTest::forbids a co admin from creating another co admin…` · `SecurityInvariantsTest::denies parent and reception accounts every staff management endpoint`. | Covered for existing endpoints. PARENT/RECEPTION creation endpoints are intentionally absent (P-02/P-01). |
+| **I-9** | No user can change their own role, status, or permissions — including SUPER_ADMIN, whose Gate bypass would otherwise skip policies. | `UserPolicy` self checks · `UpdateUserPermissionsRequest::authorize` self check · `UpdateUserPermissionOverridesAction` self guard · `DeactivateUserController` / `ReactivateUserController` repeat the self check because `Gate::before` bypasses policies for SUPER_ADMIN. | `AccountStatusTest::forbids a super admin from deactivating or reactivating themselves` · `ManageUserPermissionsTest::forbids users from modifying their own permissions` · `SecurityInvariantsTest::refuses to write overrides for a super admin or for the actor themselves` · `GatePolicyTest::authorizes SUPER_ADMIN through the global bypass…` (bypass exists) plus the self-target denial above (bypass does not cover self-management). | Covered |
+| **I-10** | PARENT reaches no administrative endpoint and sees only their own children (404 otherwise). | `UserPolicy` role gates deny PARENT on every staff ability · `EnsureUserIsActive` · no parent-facing child endpoint exists yet; child ownership scopes are scheduled for **D2.5/D2.7** and the IDOR matrix for **D2.11**. | `SecurityInvariantsTest::denies parent and reception accounts every staff management endpoint` · `CreateCoAdminTest::forbids a parent from creating a co admin` · `AccountStatusTest::denies every other role…` (PARENT dataset) · `ManageUserPermissionsTest::forbids other roles…` (PARENT dataset). | Admin denial covered. Child-ownership scope **deferred** (no child endpoint). |
+| **I-11** | RECEPTION has no permissions until P-02; the role is never activated implicitly by a seeder or policy. | `RolePermissionSeeder::DEFAULTS['RECEPTION'] = []` · every staff policy uses explicit CO_ADMIN/SUPER_ADMIN checks, so an empty RECEPTION role can never pass · `PermissionResolver` returns `[]` for a role with no permissions · no RECEPTION route or creation endpoint exists. | `SeedersTest::leaves RECEPTION with no default permissions at all` · `SecurityInvariantsTest::denies parent and reception accounts every staff management endpoint` · `AccountStatusTest::denies every other role…` (RECEPTION dataset) · `ManageUserPermissionsTest::forbids other roles…` (RECEPTION dataset) · `PermissionResolverTest::resolves an empty set for a role without permissions`. | Covered; activation remains blocked by **P-02**. |
+
+## Cross-cutting checks
+
+| Check | Implementation / test |
+|---|---|
+| Inactive accounts cannot use an existing token | `EnsureUserIsActive` on every `auth:api` group · `AccountStatusTest::rejects inactive accounts on every protected api route` · `ManageUserPermissionsTest::returns 401 for unauthenticated and inactive actors`. |
+| Soft-deleted accounts cannot use an existing token | Sanctum resolves the `tokenable` through the SoftDeletes global scope · `SecurityInvariantsTest::rejects a token whose user was soft deleted`. |
+| Soft-deleted accounts are not valid targets | Implicit route binding excludes trashed models (404) · `SecurityInvariantsTest::does not expose a soft deleted co admin as a permission target`. |
+| Tokens are revoked on deactivation and never restored | `ChangeUserStatusAction` deletes every token inside the transaction · `AccountStatusTest::revokes every existing token when deactivating` / `does not restore tokens after reactivation`. |
+| Audit rows are append-only | PostgreSQL `audit_logs_immutable` trigger · `AuditLoggerTest::keeps audit records append-only at the database level` · `TriggersTest::makes audit_logs append-only` · `SchemaScenariosTest::scenario 5`. |
+| Audit never stores secrets | `AuditLogger` redaction list and recursive redaction · `AuditLoggerTest::never persists sensitive values…` · controller audit tests assert no password hash/plaintext. |
+
+## Gaps found and action taken
+
+1. **Coverage gaps filled by `SecurityInvariantsTest`:**
+   - PARENT/RECEPTION were tested against some, not all, administrative endpoints.
+   - An *individual* `permissions.manage` grant on a CO_ADMIN was not tested (only a
+     role-level grant was).
+   - Delegation safety (I-4) was only tested indirectly through the non-delegable list.
+   - Soft-deleted actor tokens and soft-deleted targets had no endpoint-level regression.
+2. **RECEPTION default set:** `SeedersTest` asserted that four pending permissions were
+   absent but never that RECEPTION had **zero** defaults. Added a dedicated assertion.
+3. **Defense-in-depth hardening (no reachable defect):** the permission-override service
+   now repeats the self / soft-delete / CO_ADMIN-target rule at the write boundary.
+   The HTTP path already enforced it through the FormRequest, policy and route binding;
+   the guard protects future callers of the action class.
+
+No other implementation defect was found against the documented rules.
+
+## Deliberate non-changes
+
+- No new permissions, roles, seed defaults or endpoints were introduced by D1.5.
+- I-5's level comparison is not invented: there is no role-assignment endpoint in this
+  batch, and every exposed endpoint rejects client `role_id` input.
+- I-10 child-ownership scoping and the 404 matrix are not pre-implemented here; they
+  belong to D2.5/D2.7/D2.11.
+- RECEPTION stays disabled (P-02). No login, parent onboarding or role activation was added.

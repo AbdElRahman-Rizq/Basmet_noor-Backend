@@ -4,6 +4,7 @@ namespace App\Authorization;
 
 use App\Audit\AuditLogger;
 use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
@@ -42,6 +43,19 @@ final class UpdateUserPermissionOverridesAction
         array $denies,
         Request $request,
     ): array {
+        // Application-level guard for I-2/I-6/I-9. The route binding already
+        // hides soft-deleted targets and the policy/request restrict the
+        // endpoint to active SUPER_ADMIN actors targeting CO_ADMIN accounts,
+        // but the write boundary repeats the rule so no future caller can
+        // create overrides for a SUPER_ADMIN or for the actor themselves.
+        if ($actor->trashed()
+            || ! $actor->is_active
+            || $actor->is($target)
+            || $target->trashed()
+            || $target->role?->name !== Role::CO_ADMIN) {
+            throw new AuthorizationException;
+        }
+
         $grants = array_values(array_unique($grants));
         $denies = array_values(array_unique($denies));
 

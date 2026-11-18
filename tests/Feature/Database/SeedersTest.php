@@ -1,5 +1,6 @@
 <?php
 
+use App\Authorization\PermissionResolver;
 use App\Models\Branch;
 use App\Models\ConsentType;
 use App\Models\FunctionalScale;
@@ -86,6 +87,15 @@ it('grants every permission to SUPER_ADMIN and keeps pending permissions ungrant
             ->and($names)->not->toContain('admins.manage')
             ->and($names)->not->toContain('permissions.manage');
     }
+});
+
+it('leaves RECEPTION with no default permissions at all', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $reception = Role::where('name', 'RECEPTION')->firstOrFail();
+
+    expect(DB::table('role_permissions')->where('role_id', $reception->id)->count())->toBe(0)
+        ->and(app(PermissionResolver::class)->permissionsFor(fixtureUser($reception)))->toBe([]);
 });
 
 it('creates the initial SUPER_ADMIN from environment configuration only', function () {
