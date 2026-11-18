@@ -1,8 +1,10 @@
 <?php
 
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -71,4 +73,39 @@ it('rejects an unauthenticated logout with the standard envelope', function () {
                 'details' => [],
             ],
         ]);
+
+    expect(DB::table('audit_logs')->count())->toBe(0);
+});
+
+it('audits a successful logout without storing the token or its value', function () {
+    $user = fixtureUser(fixtureRole('SPECIALIST', 40), [
+        'name' => 'Logout Audit Specialist',
+        'email' => 'logout.audit@example.test',
+        'mobile' => '+966500000400',
+    ]);
+    $token = $user->createToken('current-token');
+    $plainTextToken = $token->plainTextToken;
+    $tokenId = $token->accessToken->id;
+
+    $this->withToken($plainTextToken)
+        ->postJson('/api/v1/logout')
+        ->assertOk();
+
+    $log = AuditLog::query()->sole();
+
+    expect($log->user_id)->toBe($user->id)
+        ->and($log->actor_role)->toBe('SPECIALIST')
+        ->and($log->action)->toBe('logout')
+        ->and($log->entity_name)->toBe('users')
+        ->and($log->record_id)->toBe($user->id)
+        ->and($log->old_values)->toBeNull()
+        ->and($log->new_values)->toEqual(['token_revoked' => true])
+        ->and($log->ip_address)->not->toBeNull();
+
+    expect($user->tokens()->whereKey($tokenId)->exists())->toBeFalse();
+
+    $raw = json_encode(DB::table('audit_logs')->where('id', $log->id)->first());
+
+    expect($raw)->not->toContain($plainTextToken)
+        ->and($raw)->not->toContain('current-token');
 });

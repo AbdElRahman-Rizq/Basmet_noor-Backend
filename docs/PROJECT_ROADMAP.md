@@ -135,7 +135,7 @@
 | `[x]` T-2.10 | اختبارات منع التصعيد (I-1…I-11) | 11 حالة على الأقل + `docs/SECURITY_INVARIANTS_TRACEABILITY.md` | — |
 | `[x]` T-2.11 | منع تعديل المستخدم لنفسه (role/is_active/permissions) | 403 + اختبار | — |
 | `[x]` T-2.12 | Audit logger + redaction list | password/token/child_name/parent_name لا تُسجَّل | — |
-| `[ ]` T-2.13 | Audit login/logout/failed login | بلا أسرار | — |
+| `[!]` T-2.13 | Audit login/logout/failed login | logout + token revoke flag done (`docs/AUTH_AUDIT_EVENTS.md`); login/failed-login pending | **P-32** (login/failed-login) |
 
 ---
 
